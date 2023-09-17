@@ -11,6 +11,13 @@ export default {
 			fallback: undefined,
 			precompress: false,
 			strict: true
-		})
+		}),
+		prerender: {
+			// Other prerender options
+			handleHttpError: (error) => {
+			  // Handle the error here, e.g., log it or display a custom error page
+			  console.error(error);
+			},
+		  },
 	}
 };
