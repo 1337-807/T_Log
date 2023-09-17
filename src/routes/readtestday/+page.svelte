@@ -655,7 +655,7 @@
 </svelte:head>
 
 <div id="mySidenav" class="sidenav" class:open={navOpen}>
-	<a href="#a" class="closebtn" on:click={handleNav}>&times;</a>
+	<a class="closebtn" on:click={handleNav}>&times;</a>
 	<h1>Show Gift Events</h1>
 	<ul class="groupedOptions">
 		<label>
