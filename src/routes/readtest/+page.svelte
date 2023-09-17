@@ -2,7 +2,17 @@
 	import { Event, JoinEvent, LeaveEvent, AnonGiftEvent, TimestampSnapshot } from './classes';
 	import VirtualList from '@sveltejs/svelte-virtual-list';
 	import { Chart, registerables } from 'chart.js';
-	import zoomPlugin from 'chartjs-plugin-zoom';
+	import { onMount } from 'svelte';
+	let zoomPlugin;
+	onMount(async () => {
+	// Import the chartjs-plugin-zoom library dynamically
+	try {
+		const module = await import('chartjs-plugin-zoom');
+		zoomPlugin = module.default;
+	} catch (error) {
+		console.error('Failed to import chartjs-plugin-zoom:', error);
+	}
+	});
 	import annotationPlugin from 'chartjs-plugin-annotation';
 	let myChart = undefined;
 	let cursorpos = undefined;
