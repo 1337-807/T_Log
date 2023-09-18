@@ -1,20 +1,11 @@
 <script>
-	import { Event, JoinEvent, LeaveEvent, AnonGiftEvent, TimestampSnapshot } from './classes';
+// @ts-nocheck
+	import { Event, JoinEvent, LeaveEvent, AnonGiftEvent, TimestampSnapshot } from '../giftdistribution/classes';
 	import VirtualList from '@sveltejs/svelte-virtual-list';
 	import { Chart, registerables } from 'chart.js';
-	import { onMount } from 'svelte';
-	let zoomPlugin;
-	onMount(async () => {
-	// Import the chartjs-plugin-zoom library dynamically
-	try {
-		const module = await import('chartjs-plugin-zoom');
-		zoomPlugin = module.default;
-	} catch (error) {
-		console.error('Failed to import chartjs-plugin-zoom:', error);
-	}
-	});
 	import annotationPlugin from 'chartjs-plugin-annotation';
 	let myChart = undefined;
+	let myChart2 = undefined;
 	let cursorpos = undefined;
 	let showSus = true;
 	let shownotSus = true;
@@ -25,20 +16,22 @@
 	let snapshots = [];
 	let mergedLogs = [];
 	let joinLeaveGiftArray = [];
+	let eventsNearSusArray = [];
+	let eventsNearSusArrayDetailed = [];
 	let activeUsersArray = [];
 	let eventsInScope = [];
+	let anonGiftEvents = [];
 	let joinEventsInScope = [];
 	let leaveEventsInScope = [];
+	let susMemberMap = [];
 	let allUserNamesArray = [];
+	let susMemberArray = [];
 	let names = [];
 	let name = '';
-	let timestamps = [];
-	let activeNumbers = [];
+
 	let eventStart;
 	let eventEnd;
 	let eventFilter = '';
-	let downsampledTimestamps = [];
-	let downsampledActiveNumbers = [];
 
 	let activeUsersStart;
 	let activeUsersEnd;
@@ -56,13 +49,13 @@
 	let usernamesEnd;
 	let usernamesFilter = '';
 
-	$: filteredActiveUsers = activeUsersArray.filter((i) =>
-		i.includes(activeUsersFilter.toLocaleLowerCase())
+	$: filteredActiveUsers = susMemberArray.filter((i) =>
+		i.username.includes(activeUsersFilter.toLocaleLowerCase())
 	);
-	$: filteredJoins = joinEventsInScope.filter((i) =>
+	$: filteredJoins = eventsNearSusArray.filter((i) =>
 		i.username.includes(joinsFilter.toLocaleLowerCase())
 	);
-	$: filteredLeaves = leaveEventsInScope.filter((i) =>
+	$: filteredLeaves = eventsNearSusArrayDetailed.filter((i) =>
 		i.username.includes(leavesFilter.toLocaleLowerCase())
 	);
 	$: filteredEvents =
@@ -85,6 +78,7 @@
 		filteredUsernames = allUserNamesArray.filter((i) =>
 			i.includes(usernamesFilter.toLocaleLowerCase())
 		);
+		console.log('Updated sleeping Arrays');
 	}
 
 	function addName() {
@@ -267,7 +261,9 @@
 				snapshots.push(newSnapshot);
 			}
 		});
+		console.log('Active Users calculated successfully');
 		allUserNamesArray.sort();
+		console.log('Calling create chart');
 		createChart(snapshots, events);
 		updateSleepingArrays();
 	};
@@ -309,52 +305,6 @@
 		return { allEvents, joinEvents, leaveEvents };
 	}
 
-	function downsampleData(timestamps, activeNumbers, windowSize) {
-		downsampledTimestamps = [];
-		downsampledActiveNumbers = [];
-		const downsampledzeroTimestamps = [];
-		const downsampledzeroActiveNumbers = [];
-
-		const totalPoints = timestamps.length;
-
-		for (let i = 0; i < totalPoints; i += 1) {
-			if (activeNumbers[i] == 0 || activeNumbers[i] == 1) {
-				downsampledzeroTimestamps.push(timestamps[i]);
-				downsampledzeroActiveNumbers.push(activeNumbers[i]);
-			}
-		}
-
-		for (let i = 0; i < totalPoints; i += windowSize) {
-			downsampledTimestamps.push(timestamps[i]);
-			downsampledActiveNumbers.push(activeNumbers[i]);
-		}
-		
-		// Merge downsampledzeroTimestamps with downsampledTimestamps
-		for (let i = 0; i < downsampledzeroTimestamps.length; i++) {
-			const zeroTimestamp = downsampledzeroTimestamps[i];
-			const zeroActiveNumber = downsampledzeroActiveNumbers[i];
-			const foundIndex = downsampledTimestamps.findIndex(
-				(timestamp) => timestamp === zeroTimestamp
-			);
-
-			if (foundIndex === -1) {
-				const insertionIndex = downsampledTimestamps.findIndex(
-					(timestamp) => timestamp > zeroTimestamp
-				);
-
-				if (insertionIndex === -1) {
-					downsampledTimestamps.push(zeroTimestamp);
-					downsampledActiveNumbers.push(zeroActiveNumber);
-				} else {
-					downsampledTimestamps.splice(insertionIndex, 0, zeroTimestamp);
-					downsampledActiveNumbers.splice(insertionIndex, 0, zeroActiveNumber);
-				}
-			}
-		}
-
-		return [downsampledTimestamps, downsampledActiveNumbers];
-	}
-
 	const localTimeLabels = (() => {
 		const date = new Date(); // Create a reusable Date object
 		const options = {
@@ -364,8 +314,7 @@
 			hour: 'numeric',
 			minute: 'numeric',
 			second: 'numeric',
-			hour12: false,
-			timeZone: 'America/Toronto'
+			hour12: false
 		};
 
 		return (timestamp) => {
@@ -374,331 +323,303 @@
 		};
 	})();
 
-	function updateDatasetOnZoom(chart) {
-		let zoomArea = chart.chart._options.scales.x.max - chart.chart._options.scales.x.min;
-		let windowSize = 0;
-
-		if (zoomArea < 216000) {
-			windowSize = 1;
-		} else {
-			windowSize = Math.round(zoomArea / 50000); //smaller Number = more aggresive downsampling
-		}
-
-		[downsampledTimestamps, downsampledActiveNumbers] = downsampleData(
-			JSON.parse(JSON.stringify(timestamps)),
-			JSON.parse(JSON.stringify(activeNumbers)),
-			windowSize
-		);
-
-		// Update the dataset with the downsampled data
-		myChart.data.labels = downsampledTimestamps;
-		myChart.data.datasets[0].data = downsampledActiveNumbers;
-		myChart.options.animation.duration = 0;
-
-		// Update the chart with the new dataset
-		myChart.update();
-		myChart.options.animation.duration = 500;
-	}
-
 	const createChart = (snapshots, events) => {
-		timestamps = snapshots.map((snapshot) => snapshot.timestamp);
-		activeNumbers = snapshots.map((snapshot) => snapshot.activeNumber);
+		const timestamps = snapshots.map((snapshot) => snapshot.timestamp);
+		const activeNumbers = snapshots.map((snapshot) => snapshot.activeNumber);
 		activeUsersArray = findClosestActiveUsers(timestamps[timestamps.length / 2], snapshots);
 
-		const anonGiftEvents = events.filter((event) => event.type === 'anongift');
+		anonGiftEvents = events.filter((event) => event.type === 'anongift');
 		const filteredEvents = events.filter(
 			(event) => event.type === 'join' || event.type === 'leave'
 		);
 		// Register the necessary chart components
 		Chart.register(...registerables);
-		Chart.register(zoomPlugin);
 		Chart.register(annotationPlugin);
-
-		//Downsample the Chart Data if necessary
-		let zoomArea = timestamps[timestamps.length-1] - timestamps[0];
-		let windowSize = 0;
-		if (zoomArea < 216000) {
-			windowSize = 1;
-		} else {
-			windowSize = Math.round(zoomArea / 50000); //smaller Number = more aggresive downsampling
-		}
-		[downsampledTimestamps, downsampledActiveNumbers] = downsampleData(
-			JSON.parse(JSON.stringify(timestamps)),
-			JSON.parse(JSON.stringify(activeNumbers)),
-			windowSize
-		);
 
 		// Destroy Chart if already in use
 		const canvasElement = document.getElementById('myChart');
 		if (canvasElement && myChart !== undefined) {
 			myChart.destroy();
 		}
+		const canvasElement2 = document.getElementById('myChart2');
+		if (canvasElement2 && myChart !== undefined) {
+			myChart2.destroy();
+		}
 
-		// Create the chart
+		// Create the chart1
 		const ctx = document.getElementById('myChart').getContext('2d');
+		const interval = 15; // Group events into 15-minute intervals
+		const data = Array.from({ length: (24 * 60) / interval }, () => 0);
+
+		anonGiftEvents.forEach((event) => {
+			const date = new Date(event.timestamp * 1000);
+			const hour = date.getHours();
+			const minutes = date.getMinutes();
+			const index = Math.floor((hour * 60 + minutes) / interval);
+
+			data[index]++;
+		});
+
 		myChart = new Chart(ctx, {
-			type: 'line',
+			type: 'bar',
 			data: {
-				labels: downsampledTimestamps,
+				labels: Array.from({ length: (24 * 60) / interval }, (_, i) => {
+					const startMinutes = i * interval;
+					const endMinutes = (i + 1) * interval - 1;
+					const startHour = Math.floor(startMinutes / 60);
+					const startMins = startMinutes % 60;
+					const endHour = Math.floor(endMinutes / 60);
+					const endMins = endMinutes % 60;
+
+					return `${startHour.toString().padStart(2, '0')}:${startMins
+						.toString()
+						.padStart(2, '0')} - ${endHour.toString().padStart(2, '0')}:${endMins
+						.toString()
+						.padStart(2, '0')}`;
+				}),
 				datasets: [
 					{
-						label: 'Number of Active Users',
-						data: downsampledActiveNumbers,
-						borderColor: 'rgba(0, 123, 255, 1)',
-						backgroundColor: 'rgba(0, 123, 255, 0.1)'
+						label: 'Event Distribution',
+						data,
+						backgroundColor: 'rgba(75, 192, 192, 0.2)',
+						borderColor: 'rgba(75, 192, 192, 1)',
+						borderWidth: 1
 					}
 				]
 			},
 			options: {
-				spanGaps: true,
-				responsive: true,
-				maintainAspectRatio: false,
 				scales: {
 					y: {
-						beginAtZero: true, // Adjust if necessary
-						// Add any other y-axis options you need
-						animation: {
-							// Disable animation for x-axis scaling
-							duration: 0
-						}
-					},
-					x: {
-						type: 'linear',
-						beginAtZero: false,
-						animation: {
-							// Disable animation for x-axis scaling
-							duration: 0
-						},
-						ticks: {
-							callback: function (value, index, ticks) {
-								return localTimeLabels(value);
-							}
-						},
-						minRotation: 0,
-						maxRotation: 0
-					}
-				},
-				plugins: {
-					zoom: {
-						zoom: {
-							wheel: {
-								enabled: true // Enable zooming using the mouse wheel
-							},
-							pinch: {
-								enabled: true // Enable zooming using pinch gestures on touch devices
-							},
-							mode: 'x', // Enable zooming in x direction onl
-							onZoom: function (chart) {
-								// Call the updateDatasetOnZoom function after the zoom is complete
-								updateDatasetOnZoom(chart);
-							}
-						},
-						pan: {
-							enabled: true, // Enable panning
-							mode: 'x' // Enable panning in x direction only
-						}
-					},
-					tooltip: {
-						callbacks: {
-							label: (context) => {
-								const activeUsers = downsampledActiveNumbers[context.dataIndex];
-								return `Active Users: ${activeUsers}`; // Adjust options for desired time format
-							},
-							title: (tooltipItems) => {
-								const timestamp = downsampledTimestamps[tooltipItems[0].dataIndex];
-								return localTimeLabels(timestamp);
-							}
-						}
-					},
-					annotation: {
-						annotations: []
-					}
-				},
-				elements: {
-					line: {
-						borderWidth: 2 // Adjust the width of the line
-					},
-					point: {
-						radius: 2 // Set point radius to 0 if you don't want to display data points
+						beginAtZero: true,
+						max: Math.max(...data) + 1 // Adjust the y-axis scale if needed
 					}
 				}
 			}
 		});
-		cursorpos = timestamps[timestamps.length / 2];
-		// add the annotations
-		var annotations = [
-			{
-				type: 'line',
-				id: 'cursor-radius',
-				mode: 'vertical',
-				scaleID: 'x',
-				value: timestamps[timestamps.length / 2], // Set initial value to 0, you can update it dynamically based on cursor position
-				borderColor: 'rgba(0, 92, 190, 0.5)',
-				borderWidth: 25,
-				label: {
-					content: 'Cursor Position', // Customize label content
-					enabled: true,
-					position: 'top'
-				}
-			},
-			{
-				type: 'line',
-				id: 'cursor-line',
-				mode: 'vertical',
-				scaleID: 'x',
-				value: timestamps[timestamps.length / 2], // Set initial value to 0, you can update it dynamically based on cursor position
-				borderColor: 'rgba(255, 207, 0, 0.9)',
-				borderWidth: 3,
-				label: {
-					content: 'Cursor Position', // Customize label content
-					enabled: true,
-					position: 'top'
-				}
-			}
-		];
+		// Create the chart2
+		const ctx2 = document.getElementById('myChart2').getContext('2d');
+		const data2 = Array.from({ length: (24 * 60) / interval }, () => 0);
+
 		anonGiftEvents.forEach((event) => {
-			const { timestamp, isSus, username } = event;
-			const xValue = timestamp;
-			const color = isSus ? 'red' : 'green';
-			if (isSus & showSus || !isSus & shownotSus) {
-				annotations.push({
-					type: 'line',
-					mode: 'vertical',
-					scaleID: 'x',
-					value: xValue,
-					borderColor: color,
-					borderWidth: 5,
-					borderDash: [10, 5],
-					label: {
-						display: (ctx) => ctx.hovered,
-						backgroundColor: color,
-						drawTime: 'afterDatasetsDraw',
-						content: (ctx) => `Gifted sub was to: ${username}`,
-						position: (ctx) => ctx.hoverPosition
-					},
-					enter(ctx, event) {
-						ctx.hovered = true;
-						ctx.hoverPosition = (event.y / ctx.chart.chartArea.height) * 100 + '%';
-						ctx.chart.update();
-					},
-					leave(ctx, event) {
-						ctx.hovered = false;
-						ctx.chart.update();
+			if (event.isSus) {
+				const date = new Date(event.timestamp * 1000);
+				const hour = date.getHours();
+				const minutes = date.getMinutes();
+				const index = Math.floor((hour * 60 + minutes) / interval);
+
+				data2[index]++;
+			}
+		});
+
+		myChart2 = new Chart(ctx2, {
+			type: 'bar',
+			data: {
+				labels: Array.from({ length: (24 * 60) / interval }, (_, i) => {
+					const startMinutes = i * interval;
+					const endMinutes = (i + 1) * interval - 1;
+					const startHour = Math.floor(startMinutes / 60);
+					const startMins = startMinutes % 60;
+					const endHour = Math.floor(endMinutes / 60);
+					const endMins = endMinutes % 60;
+
+					return `${startHour.toString().padStart(2, '0')}:${startMins
+						.toString()
+						.padStart(2, '0')} - ${endHour.toString().padStart(2, '0')}:${endMins
+						.toString()
+						.padStart(2, '0')}`;
+				}),
+				datasets: [
+					{
+						label: 'Event Distribution',
+						data: data2,
+						backgroundColor: 'rgba(75, 192, 192, 0.2)',
+						borderColor: 'rgba(75, 192, 192, 1)',
+						borderWidth: 1
+					}
+				]
+			},
+			options: {
+				scales: {
+					y: {
+						beginAtZero: true,
+						max: Math.max(...data) + 1 // Adjust the y-axis scale if needed
+					}
+				}
+			}
+		});
+
+		let susMemberMap = new Map();
+
+		anonGiftEvents.forEach((event) => {
+			if (event.isSus) {
+				const activeUsersAtPoint = findClosestActiveUsers(event.timestamp, snapshots);
+				activeUsersAtPoint.forEach((user) => {
+					if (susMemberMap.has(user)) {
+						susMemberMap.set(user, susMemberMap.get(user) + 1);
+					} else {
+						susMemberMap.set(user, 1);
 					}
 				});
 			}
 		});
-		//add annotations for filtered username join and leave events
-		filteredEvents.forEach((event) => {
-			const { timestamp, type, username } = event;
-			if (names.includes(username)) {
-				const xValue = timestamp;
-				const color = type == 'leave' ? 'orange' : 'purple';
-				annotations.push({
-					type: 'line',
-					mode: 'vertical',
-					scaleID: 'x',
-					value: xValue,
-					borderColor: color,
-					borderWidth: 5,
-					borderDash: [25, 10],
-					label: {
-						display: (ctx) => ctx.hovered,
-						backgroundColor: color,
-						drawTime: 'afterDatasetsDraw',
-						content: (ctx) => `${type}: ${username}`,
-						position: (ctx) => ctx.hoverPosition
-					},
-					enter(ctx, event) {
-						ctx.hovered = true;
-						ctx.hoverPosition = (event.y / ctx.chart.chartArea.height) * 100 + '%';
-						ctx.chart.update();
-					},
-					leave(ctx, event) {
-						ctx.hovered = false;
-						ctx.chart.update();
+
+		const sortedCounts = Array.from(susMemberMap.entries()).sort((a, b) => {
+			if (b[1] === a[1]) {
+				return a[0].localeCompare(b[0]);
+			}
+			return b[1] - a[1];
+		});
+		console.log(susMemberMap);
+		//create susMemberArray where Member occurences are counted at sus gift events
+		susMemberArray = sortedCounts.map(([username, count]) => ({ username, count }));
+
+		eventsNearSusArray = [];
+		eventsNearSusArrayDetailed = [];
+
+		//create eventsNearSusArray & eventsNearSusArrayDetailed
+		anonGiftEvents.forEach((event) => {
+			if (event.isSus) {
+				const filteredEvents = filterEventsByTime(events, event.timestamp, eventScanRadius);
+				const eventsInScope = filteredEvents.allEvents;
+
+				const userEventTypeCounts = {};
+				const userEventTypeCountsBefore = {};
+				const userEventTypeCountsAfter = {};
+
+				eventsInScope.forEach((filteredEvent) => {
+					if (filteredEvent instanceof JoinEvent || filteredEvent instanceof LeaveEvent) {
+						const username = filteredEvent.username;
+						const eventType = filteredEvent.type;
+
+						// Count occurrences of event types for each user
+						if (!userEventTypeCounts[username]) {
+							userEventTypeCounts[username] = {};
+						}
+						if (!userEventTypeCounts[username][eventType]) {
+							userEventTypeCounts[username][eventType] = 0;
+						}
+						userEventTypeCounts[username][eventType]++;
+
+						// Count occurrences of event types before and after the timestamp for each user
+						if (filteredEvent.timestamp < event.timestamp) {
+							if (!userEventTypeCountsBefore[username]) {
+								userEventTypeCountsBefore[username] = {};
+							}
+							if (!userEventTypeCountsBefore[username][eventType]) {
+								userEventTypeCountsBefore[username][eventType] = 0;
+							}
+							userEventTypeCountsBefore[username][eventType]++;
+						} else if (filteredEvent.timestamp > event.timestamp) {
+							if (!userEventTypeCountsAfter[username]) {
+								userEventTypeCountsAfter[username] = {};
+							}
+							if (!userEventTypeCountsAfter[username][eventType]) {
+								userEventTypeCountsAfter[username][eventType] = 0;
+							}
+							userEventTypeCountsAfter[username][eventType]++;
+						}
 					}
 				});
+
+				// Push user event type counts to eventsNearSusArray
+				for (const username in userEventTypeCounts) {
+					for (const eventType in userEventTypeCounts[username]) {
+						const count = userEventTypeCounts[username][eventType];
+						// Check if an entry with the same username and eventType already exists
+						const existingEntry = eventsNearSusArray.find(
+							(entry) => entry.username === username && entry.eventType === eventType
+						);
+
+						if (existingEntry) {
+							// Entry already exists, you can update the count or handle it as per your requirements
+							existingEntry.count += count;
+						} else {
+							// Entry doesn't exist, add a new entry to the eventsNearSusArray array
+							eventsNearSusArray.push({ username, eventType, count });
+						}
+					}
+				}
+
+				// Push user event type counts after to eventsNearSusArrayDetailed
+				for (const username in userEventTypeCountsAfter) {
+					for (const eventType in userEventTypeCountsAfter[username]) {
+						const countAfter =
+							userEventTypeCountsAfter[username] && userEventTypeCountsAfter[username][eventType];
+						if (countAfter > 0) {
+							const existingEntry = eventsNearSusArrayDetailed.find(
+								(entry) =>
+									entry.username === username &&
+									entry.eventType === eventType &&
+									entry.type === 'after'
+							);
+							if (existingEntry) {
+								// Entry already exists, you can update the count or handle it as per your requirements
+								existingEntry.count += countAfter;
+							} else {
+								// Entry doesn't exist, add a new entry to the eventsNearSusArrayDetailed array
+								eventsNearSusArrayDetailed.push({
+									username,
+									eventType,
+									type: 'after',
+									count: countAfter
+								});
+							}
+						}
+					}
+				}
+
+				// Push user event type counts before to eventsNearSusArrayDetailed
+				for (const username in userEventTypeCountsBefore) {
+					for (const eventType in userEventTypeCountsBefore[username]) {
+						const countBefore = userEventTypeCountsBefore[username][eventType];
+						if (countBefore > 0) {
+							const existingEntry = eventsNearSusArrayDetailed.find(
+								(entry) =>
+									entry.username === username &&
+									entry.eventType === eventType &&
+									entry.type === 'before'
+							);
+							if (existingEntry) {
+								// Entry already exists, you can update the count or handle it as per your requirements
+								existingEntry.count += countBefore;
+							} else {
+								// Entry doesn't exist, add a new entry to the eventsNearSusArrayDetailed array
+								eventsNearSusArrayDetailed.push({
+									username,
+									eventType,
+									type: 'before',
+									count: countBefore
+								});
+							}
+						}
+					}
+				}
+			}
+			console.log('Finished Create Chart');
+		});
+
+		// Sort eventsNearSusArray
+		eventsNearSusArray.sort((a, b) => {
+			if (b.count !== a.count) {
+				return b.count - a.count;
+			} else {
+				return a.username.localeCompare(b.username);
 			}
 		});
-		myChart.options.plugins.annotation.annotations = annotations;
-		myChart.update();
-		// Add event listener to update cursor position
-		let isMouseOverChart = false;
-		let timeoutId;
 
-		ctx.canvas.addEventListener('mouseenter', () => {
-			isMouseOverChart = true;
+		// Sort eventsNearSusArrayDetailed
+		eventsNearSusArrayDetailed.sort((a, b) => {
+			if (b.count !== a.count) {
+				return b.count - a.count;
+			} else {
+				return a.username.localeCompare(b.username);
+			}
 		});
 
-		ctx.canvas.addEventListener('mouseleave', () => {
-			isMouseOverChart = false;
-		});
-
-		ctx.canvas.addEventListener('mousemove', (event) => {
-			clearTimeout(timeoutId);
-
-			timeoutId = setTimeout(() => {
-				if (!isMouseOverChart) {
-					return; // Exit if the mouse is not over the chart
-				}
-
-				const chartArea = myChart.chartArea;
-				const offsetX = event.offsetX;
-				const chartX = myChart.scales.x.getValueForPixel(offsetX);
-				const valueper1 = chartX - myChart.scales.x.getValueForPixel(offsetX - 1);
-				const desiredWidth = (eventScanRadius * 2) / valueper1;
-				cursorpos = chartX;
-
-				//update the important arrays to reflect the change in the lists
-				activeUsersArray = findClosestActiveUsers(chartX, snapshots);
-				const filteredEvents = filterEventsByTime(events, chartX, eventScanRadius);
-				eventsInScope = filteredEvents.allEvents;
-				joinEventsInScope = filteredEvents.joinEvents;
-				leaveEventsInScope = filteredEvents.leaveEvents;
-
-				// Add a new variable `relationTimestamp` to each entry in eventsInScope
-				eventsInScope = eventsInScope.map((event) => {
-					return {
-						...event,
-						relationTimestamp: event.timestamp - chartX
-					};
-				});
-
-				// Add a new variable `relationTimestamp` to each entry in joinEventsInScope
-				joinEventsInScope = joinEventsInScope.map((event) => {
-					return {
-						...event,
-						relationTimestamp: event.timestamp - chartX
-					};
-				});
-
-				// Add a new variable `relationTimestamp` to each entry in leaveEventsInScope
-				leaveEventsInScope = leaveEventsInScope.map((event) => {
-					return {
-						...event,
-						relationTimestamp: event.timestamp - chartX
-					};
-				});
-
-				// Update the value of the vertical line annotation
-				const cursorRadiusAnnotation = myChart.options.plugins.annotation.annotations.find(
-					(annotation) => annotation.id === 'cursor-radius'
-				);
-				const cursorLineAnnotation = myChart.options.plugins.annotation.annotations.find(
-					(annotation) => annotation.id === 'cursor-line'
-				);
-				if (cursorRadiusAnnotation) {
-					cursorRadiusAnnotation.value = chartX;
-					cursorRadiusAnnotation.borderWidth = desiredWidth;
-					myChart.update();
-				}
-				if (cursorLineAnnotation) {
-					cursorLineAnnotation.value = chartX;
-					myChart.update();
-				}
-			}, 250); // Delay in milliseconds (1/4 a second)
-		});
+		console.log('trying to log Near Array');
+		console.log(eventsNearSusArray);
+		console.log('trying to log Near Array Detail');
+		console.log(eventsNearSusArrayDetailed);
 	};
 
 	const readFile = (file) => {
@@ -782,6 +703,7 @@
 </div>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
+<!-- svelte-ignore a11y-no-static-element-interactions -->
 <div class="container" class:change={navOpen} on:click={handleNav}>
 	<div class="bar1" />
 	<div class="bar2" />
@@ -791,13 +713,21 @@
 <!-- Use keyboard to handle the sidenav -->
 <svelte:window on:keydown={handleNavWithKey} />
 
+
 <p><input type="file" bind:files multiple on:change={handleFiles} />select some log data</p>
+<h1>All Anon Gift Events</h1>
 <div class="wrapper" style="width: 1600px; height: 400px;">
 	<canvas id="myChart" style="width: 1600px; height: 400px;" />
 </div>
+<h1>Only sus Gift Events</h1>
+<div class="wrapper" style="width: 1600px; height: 400px;">
+	<canvas id="myChart2" style="width: 1600px; height: 400px;" />
+</div>
+<!--
 {#if cursorpos != undefined}
 	<h1>Cursor is at: {localTimeLabels(cursorpos)} - {parseFloat(cursorpos).toFixed(2)}</h1>
 {/if}
+-->
 
 <div class="row">
 	<div class="col">
@@ -821,8 +751,13 @@
 			</VirtualList>
 		</div>
 	</div>
+	<!--
+				for (const [username, count] of sortedCounts) {
+			console.log(`Username: ${username}, Count: ${count}`);
+		}
+	-->
 	<div class="col">
-		<b style="margin: auto">Active Users at Cursor</b>
+		<b style="margin: auto">No. User was active at sus Gift Event</b>
 		<p>{activeUsersStart} - {activeUsersEnd} from {filteredActiveUsers.length} total</p>
 		<input type="text" bind:value={activeUsersFilter} placeholder="filter name" />
 		<div class="List">
@@ -834,13 +769,14 @@
 				let:item
 			>
 				<div class="ListItem">
-					<p>{item}</p>
+					<strong>{item.count}</strong>
+					<p>{item.username}</p>
 				</div>
 			</VirtualList>
 		</div>
 	</div>
 	<div class="col">
-		<b style="margin: auto">Joins in Scanradius</b>
+		<b style="margin: auto">Events at sus Gift Events in Scanradius</b>
 		<p>{joinsStart} - {joinsEnd} from {filteredJoins.length} total</p>
 		<input type="text" bind:value={joinsFilter} placeholder="filter name" />
 		<div class="List">
@@ -852,13 +788,14 @@
 				let:item
 			>
 				<div class="ListItem">
-					<p>{item.relationTimestamp.toFixed(0)}: {item.username}</p>
+					<strong>{item.count}</strong>
+					<p>{item.username}: {item.eventType}</p>
 				</div>
 			</VirtualList>
 		</div>
 	</div>
 	<div class="col">
-		<b style="margin: auto">Leaves in Scanradius</b>
+		<b style="margin: auto">Grouped Events at sus in Scanradius</b>
 		<p>{leavesStart} - {leavesEnd} from {filteredLeaves.length} total</p>
 		<input type="text" bind:value={leavesFilter} placeholder="filter name" />
 		<div class="List">
@@ -870,7 +807,8 @@
 				let:item
 			>
 				<div class="ListItem">
-					<p>{item.relationTimestamp.toFixed(0)}: {item.username}</p>
+					<strong>{item.count} - {item.type}</strong>
+					<p>{item.username}: {item.eventType} </p>
 				</div>
 			</VirtualList>
 		</div>
@@ -895,11 +833,66 @@
 	</div>
 </div>
 
+<h1>All Anongift</h1>
+<table>
+	<thead>
+		<tr>
+			<th>Type</th>
+			<th>Username</th>
+			<th>Timestamp</th>
+			<th>Suspicous</th>
+			<th>OriginID</th>
+			<th>ID</th>
+			<th>TMI-Timestamp</th>
+		</tr>
+	</thead>
+	<tbody>
+		{#each anonGiftEvents as event}
+			<tr>
+				<td>{event.type}</td>
+				<td>{event.username}</td>
+				<td>{localTimeLabels(event.timestamp)}</td>
+				<td>{event.isSus}</td>
+				<td>{event.originId}</td>
+				<td>{event.id}</td>
+				<td>{event.tmiTimestamp}</td>
+			</tr>
+		{/each}
+	</tbody>
+</table>
+<h1>Only Suspicous</h1>
+<table>
+	<thead>
+		<tr>
+			<th>Type</th>
+			<th>Username</th>
+			<th>Timestamp</th>
+			<th>Suspicous</th>
+			<th>OriginID</th>
+			<th>ID</th>
+			<th>TMI-Timestamp</th>
+		</tr>
+	</thead>
+	<tbody>
+		{#each anonGiftEvents.filter((event) => event.isSus) as event}
+			<tr>
+				<td>{event.type}</td>
+				<td>{event.username}</td>
+				<td>{localTimeLabels(event.timestamp)}</td>
+				<td>{event.isSus}</td>
+				<td>{event.originId}</td>
+				<td>{event.id}</td>
+				<td>{event.tmiTimestamp}</td>
+			</tr>
+		{/each}
+	</tbody>
+</table>
+
 <style>
 	/* Hamburger Menu icon */
 	.container {
 		position: absolute;
-		left: 10%;
+		left: 27%;
 		display: inline-block;
 		cursor: pointer;
 	}
@@ -1031,10 +1024,11 @@
 		flex: 1;
 		display: flex;
 		justify-content: space-between;
+		min-height: 250px;
+		width: inherit;
 	}
 	.col {
 		flex: 1;
-		min-width: 33%;
 		display: flex;
 		flex-flow: column;
 		padding: 0.5rem 0.5rem 0 0.5rem;
@@ -1057,5 +1051,18 @@
 		height: auto; /* without this is unstable */
 		overflow: wrap;
 		overflow-wrap: anywhere;
+	}
+	table {
+		border-collapse: collapse;
+		width: 100%;
+	}
+	th,
+	td {
+		border: 1px solid #ddd;
+		padding: 8px;
+		text-align: left;
+	}
+	th {
+		background-color: #f2f2f2;
 	}
 </style>
