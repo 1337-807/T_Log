@@ -1,7 +1,7 @@
 <script>
 // @ts-nocheck
 	import { Event, JoinEvent, LeaveEvent, AnonGiftEvent, TimestampSnapshot } from '../giftdashboard/classes';
-	import VirtualList from '@sveltejs/svelte-virtual-list';
+	import VirtualList from 'svelte-virtual-list-ce';
 	import { Chart, registerables } from 'chart.js';
 	import { onMount } from 'svelte';
 	let zoomPlugin;
@@ -15,6 +15,52 @@
 	}
 	});
 	import annotationPlugin from 'chartjs-plugin-annotation';
+	import Select from 'svelte-select';
+    let items = [
+        { value: 'one', label: 'One' },
+        { value: 'two', label: 'Two' },
+        { value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+		{ value: 'three', label: 'Three' },
+    ];
 	let myChart = undefined;
 	let cursorpos = undefined;
 	let showSus = true;
@@ -775,6 +821,8 @@
 			{/each}
 		</ul>
 	</ul>
+	<h1>Override Timezone</h1>
+	<Select {items} class="selector" />
 	<h1>Apply Settings</h1>
 	<div style="display: flex; justify-content: center;">
 		<button class="redrawbutton" on:click={reRenderChart}>Redraw the chart</button>
@@ -793,8 +841,8 @@
 <svelte:window on:keydown={handleNavWithKey} />
 
 <p><input type="file" bind:files multiple on:change={handleFiles} />select some log data</p>
-<div class="wrapper" style="width: 1600px; height: 400px;">
-	<canvas id="myChart" style="width: 1600px; height: 400px;" />
+<div class="wrapper" style="width: inherit; height: 400px;">
+	<canvas id="myChart" style="width: inherit; height: 400px;" />
 </div>
 {#if cursorpos != undefined}
 	<h1>Cursor is at: {localTimeLabels(cursorpos)} - {parseFloat(cursorpos).toFixed(2)}</h1>
@@ -1059,5 +1107,11 @@
 		height: auto; /* without this is unstable */
 		overflow: wrap;
 		overflow-wrap: anywhere;
+	}
+	:global(.selector) {
+		color: black;
+		margin-left: 1rem !important;
+    	margin-right: 1rem !important;
+    	width: auto !important;
 	}
 </style>

@@ -1,7 +1,7 @@
 <script>
 // @ts-nocheck
 	import { Event, JoinEvent, LeaveEvent, AnonGiftEvent, TimestampSnapshot } from '../giftdistribution/classes';
-	import VirtualList from '@sveltejs/svelte-virtual-list';
+	import VirtualList from 'svelte-virtual-list-ce';
 	import { Chart, registerables } from 'chart.js';
 	import annotationPlugin from 'chartjs-plugin-annotation';
 	let myChart = undefined;
@@ -381,8 +381,8 @@
 					{
 						label: 'Event Distribution',
 						data,
-						backgroundColor: 'rgba(75, 192, 192, 0.2)',
-						borderColor: 'rgba(75, 192, 192, 1)',
+						backgroundColor: 'rgba(204, 68, 29, 0.2)',
+						borderColor: 'rgba(204, 68, 29, 1)',
 						borderWidth: 1
 					}
 				]
@@ -432,8 +432,8 @@
 					{
 						label: 'Event Distribution',
 						data: data2,
-						backgroundColor: 'rgba(75, 192, 192, 0.2)',
-						borderColor: 'rgba(75, 192, 192, 1)',
+						backgroundColor: 'rgba(204, 68, 29, 0.2)',
+						borderColor: 'rgba(204, 68, 29, 1)',
 						borderWidth: 1
 					}
 				]
@@ -716,12 +716,12 @@
 
 <p><input type="file" bind:files multiple on:change={handleFiles} />select some log data</p>
 <h1>All Anon Gift Events</h1>
-<div class="wrapper" style="width: 1600px; height: 400px;">
-	<canvas id="myChart" style="width: 1600px; height: 400px;" />
+<div class="wrapper" style="width: inherit; height: 400px;">
+	<canvas id="myChart" style="width: inherit; height: 400px;" />
 </div>
 <h1>Only sus Gift Events</h1>
-<div class="wrapper" style="width: 1600px; height: 400px;">
-	<canvas id="myChart2" style="width: 1600px; height: 400px;" />
+<div class="wrapper" style="width: inherit; height: 400px;">
+	<canvas id="myChart2" style="width: inherit; height: 400px;" />
 </div>
 <!--
 {#if cursorpos != undefined}
