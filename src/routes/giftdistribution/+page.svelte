@@ -399,18 +399,12 @@
 
 	const createChart = (snapshots, events) => {
 		const timestamps = snapshots.map((snapshot) => snapshot.timestamp);
-		const activeNumbers = snapshots.map(
-			(snapshot) => snapshot.activeNumber
-		);
 		activeUsersArray = findClosestActiveUsers(
 			timestamps[timestamps.length / 2],
 			snapshots
 		);
 
 		anonGiftEvents = events.filter((event) => event.type === "anongift");
-		const filteredEvents = events.filter(
-			(event) => event.type === "join" || event.type === "leave"
-		);
 		// Register the necessary chart components
 		Chart.register(...registerables);
 		Chart.register(annotationPlugin);
@@ -421,7 +415,7 @@
 			myChart.destroy();
 		}
 		const canvasElement2 = document.getElementById("myChart2");
-		if (canvasElement2 && myChart !== undefined) {
+		if (canvasElement2 && myChart2 !== undefined) {
 			myChart2.destroy();
 		}
 
@@ -451,7 +445,8 @@
 				// Format the date in the specified timezone
 				const formattedTime = date.toLocaleString("en-US", options);
 				// Parse the formatted time to extract the hour and minute
-				const [hour, minute] = formattedTime.split(":").map(Number);
+				let [hour, minute] = formattedTime.split(":").map(Number);
+				hour = hour % 24;
 				const index = Math.floor((hour * 60 + minute) / interval);
 				data[index]++;
 			});
@@ -522,6 +517,7 @@
 					const formattedTime = date.toLocaleString("en-US", options);
 					// Parse the formatted time to extract the hour and minute
 					[hour, minutes] = formattedTime.split(":").map(Number);
+					hour = hour % 24;
 				}
 				const index = Math.floor((hour * 60 + minutes) / interval);
 
