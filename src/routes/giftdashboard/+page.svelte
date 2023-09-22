@@ -1,72 +1,35 @@
 <script>
-// @ts-nocheck
-	import { Event, JoinEvent, LeaveEvent, AnonGiftEvent, TimestampSnapshot } from '../giftdashboard/classes';
-	import VirtualList from 'svelte-virtual-list-ce';
-	import { Chart, registerables } from 'chart.js';
-	import { onMount } from 'svelte';
+	// @ts-nocheck
+	import {
+		Event,
+		JoinEvent,
+		LeaveEvent,
+		AnonGiftEvent,
+		TimestampSnapshot,
+	} from "../giftdashboard/classes";
+	import VirtualList from "svelte-virtual-list-ce";
+	import { Chart, registerables } from "chart.js";
+	import { onMount } from "svelte";
 	let zoomPlugin;
 	onMount(async () => {
-	// Import the chartjs-plugin-zoom library dynamically
-	try {
-		const module = await import('chartjs-plugin-zoom');
-		zoomPlugin = module.default;
-	} catch (error) {
-		console.error('Failed to import chartjs-plugin-zoom:', error);
-	}
+		// Import the chartjs-plugin-zoom library dynamically
+		try {
+			const module = await import("chartjs-plugin-zoom");
+			zoomPlugin = module.default;
+		} catch (error) {
+			console.error("Failed to import chartjs-plugin-zoom:", error);
+		}
 	});
-	import annotationPlugin from 'chartjs-plugin-annotation';
-	import Select from 'svelte-select';
-    let items = [
-        { value: 'one', label: 'One' },
-        { value: 'two', label: 'Two' },
-        { value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-		{ value: 'three', label: 'Three' },
-    ];
+	import annotationPlugin from "chartjs-plugin-annotation";
+	import Select from "svelte-select";
+	let timezoneList = [];
 	let myChart = undefined;
 	let cursorpos = undefined;
 	let showSus = true;
 	let shownotSus = true;
 	let hardFilter = false;
 	let eventScanRadius = 500;
+	let timezoneOverride = undefined;
 	let files = [];
 	let logs = [];
 	let snapshots = [];
@@ -78,30 +41,30 @@
 	let leaveEventsInScope = [];
 	let allUserNamesArray = [];
 	let names = [];
-	let name = '';
+	let name = "";
 	let timestamps = [];
 	let activeNumbers = [];
 	let eventStart;
 	let eventEnd;
-	let eventFilter = '';
+	let eventFilter = "";
 	let downsampledTimestamps = [];
 	let downsampledActiveNumbers = [];
 
 	let activeUsersStart;
 	let activeUsersEnd;
-	let activeUsersFilter = '';
+	let activeUsersFilter = "";
 
 	let joinsStart;
 	let joinsEnd;
-	let joinsFilter = '';
+	let joinsFilter = "";
 
 	let leavesStart;
 	let leavesEnd;
-	let leavesFilter = '';
+	let leavesFilter = "";
 
 	let usernamesStart;
 	let usernamesEnd;
-	let usernamesFilter = '';
+	let usernamesFilter = "";
 
 	$: filteredActiveUsers = activeUsersArray.filter((i) =>
 		i.includes(activeUsersFilter.toLocaleLowerCase())
@@ -122,7 +85,9 @@
 			: [];
 	$: filteredUsernames =
 		allUserNamesArray.length > 0
-			? allUserNamesArray.filter((i) => i.includes(usernamesFilter.toLocaleLowerCase()))
+			? allUserNamesArray.filter((i) =>
+					i.includes(usernamesFilter.toLocaleLowerCase())
+			  )
 			: [];
 
 	function updateSleepingArrays() {
@@ -135,9 +100,9 @@
 	}
 
 	function addName() {
-		if ((name != '') & (name != undefined)) {
+		if ((name != "") & (name != undefined)) {
 			names = [...names, name.toLocaleLowerCase()];
-			name = '';
+			name = "";
 		}
 	}
 	function deleteFromArray(string) {
@@ -147,6 +112,44 @@
 		}
 		names = names;
 	}
+
+	function getTimezoneOffset(timezone) {
+		const now = new Date();
+		const offset = now
+			.toLocaleTimeString("en-US", {
+				timeZone: timezone,
+				timeZoneName: "short",
+			})
+			.split(" ")[2];
+		return offset;
+	}
+
+	function getLocalTimezoneAndOffset() {
+		const localTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+		const localTimezoneOffset = getTimezoneOffset(localTimeZone);
+		return `${localTimeZone} - ${localTimezoneOffset}`;
+	}
+
+	function getTimezoneAndOffset(timezone) {
+		const timezoneOffset = getTimezoneOffset(timezone);
+		return `${timezone} - ${timezoneOffset}`;
+	}
+
+	function fillTimezoneList() {
+		let temparray = [{ value: "undefined", label: "Use local timezone" }];
+		const timeZones = Intl.supportedValuesOf("timeZone", {
+			type: "canonical",
+		});
+		for (const timezone of timeZones) {
+			const offset = getTimezoneOffset(timezone);
+			temparray.push({
+				value: timezone,
+				label: `${timezone} - ${offset}`,
+			});
+		}
+		return temparray;
+	}
+	timezoneList = fillTimezoneList();
 
 	function reRenderChart() {
 		createChart(snapshots, mergedLogs);
@@ -162,15 +165,15 @@
 			const fileContent = await readFile(file);
 
 			console.log(currentFileName);
-			const lines = fileContent.split('\n');
-			if (currentFileName.includes('init')) {
-				const initEvent = new Event('init', -1);
-				lines.unshift(JSON.stringify(initEvent) + '\n');
-				console.log('this is an init file');
+			const lines = fileContent.split("\n");
+			if (currentFileName.includes("init")) {
+				const initEvent = new Event("init", -1);
+				lines.unshift(JSON.stringify(initEvent) + "\n");
+				console.log("this is an init file");
 			}
 
 			const parsedData = parseLines(lines, previousTimestamp); // Pass previousTimestamp to parseLines
-			console.log('parsedData successful');
+			console.log("parsed Data successfully");
 			logs.push(parsedData);
 
 			if (parsedData.length > 0) {
@@ -178,7 +181,7 @@
 			}
 		}
 
-		console.log('All files read successfully');
+		console.log("All files read successfully");
 		mergedLogs = logs.flat();
 		calculateActiveUsers(mergedLogs);
 	};
@@ -188,19 +191,26 @@
 
 		for (let i = 0; i < lines.length; i++) {
 			const line = lines[i];
-			if (line === '') {
-				console.log('line empty, skipping');
+			if (line === "") {
+				console.log("line empty, skipping");
 			} else {
 				let event = JSON.parse(line);
 				switch (event.type) {
-					case 'init':
-						const timestamp = adjustInitTimestamp(previousTimestamp, lines, i);
-						const initEvent = new Event('init', timestamp);
+					case "init":
+						const timestamp = adjustInitTimestamp(
+							previousTimestamp,
+							lines,
+							i
+						);
+						const initEvent = new Event("init", timestamp);
 						eventList.push(initEvent);
 						previousTimestamp = event.timestamp;
 						break;
-					case 'join':
-						const joinEvent = new JoinEvent(event.username, event.timestamp);
+					case "join":
+						const joinEvent = new JoinEvent(
+							event.username,
+							event.timestamp
+						);
 						if (!hardFilter) {
 							eventList.push(joinEvent);
 						} else {
@@ -211,8 +221,11 @@
 						previousTimestamp = event.timestamp;
 
 						break;
-					case 'leave':
-						const leaveEvent = new LeaveEvent(event.username, event.timestamp);
+					case "leave":
+						const leaveEvent = new LeaveEvent(
+							event.username,
+							event.timestamp
+						);
 						if (!hardFilter) {
 							eventList.push(leaveEvent);
 						} else {
@@ -222,7 +235,7 @@
 						}
 						previousTimestamp = event.timestamp;
 						break;
-					case 'anongift':
+					case "anongift":
 						const anonGiftEvent = new AnonGiftEvent(
 							event.username,
 							event.timestamp,
@@ -250,7 +263,6 @@
 			return nextEvent.timestamp - 1;
 		} else {
 			// Handle the case when there is no previous event and no next event
-			// You can set a default value or return null/undefined depending on your requirements
 			return undefined;
 		}
 	};
@@ -267,7 +279,7 @@
 			) {
 				joinLeaveGiftArray.push(event);
 			}
-			if (event.type === 'init') {
+			if (event.type === "init") {
 				activeUsers = [];
 				const timestamp = Math.floor(event.timestamp);
 				const newSnapshot = new TimestampSnapshot(timestamp, [], 0);
@@ -294,7 +306,9 @@
 			}
 
 			const timestamp = Math.floor(event.timestamp); // Convert timestamp to seconds
-			const existingSnapshotIndex = snapshots.findIndex((s) => s.timestamp === timestamp);
+			const existingSnapshotIndex = snapshots.findIndex(
+				(s) => s.timestamp === timestamp
+			);
 
 			if (existingSnapshotIndex !== -1) {
 				const numberOfActiveUsers = activeUsers.length;
@@ -324,7 +338,8 @@
 
 		snapshots.forEach((snapshot) => {
 			if (
-				Math.abs(snapshot.timestamp - timestamp) < Math.abs(closestSnapshot.timestamp - timestamp)
+				Math.abs(snapshot.timestamp - timestamp) <
+				Math.abs(closestSnapshot.timestamp - timestamp)
 			) {
 				closestSnapshot = snapshot;
 			}
@@ -375,7 +390,7 @@
 			downsampledTimestamps.push(timestamps[i]);
 			downsampledActiveNumbers.push(activeNumbers[i]);
 		}
-		
+
 		// Merge downsampledzeroTimestamps with downsampledTimestamps
 		for (let i = 0; i < downsampledzeroTimestamps.length; i++) {
 			const zeroTimestamp = downsampledzeroTimestamps[i];
@@ -393,8 +408,16 @@
 					downsampledTimestamps.push(zeroTimestamp);
 					downsampledActiveNumbers.push(zeroActiveNumber);
 				} else {
-					downsampledTimestamps.splice(insertionIndex, 0, zeroTimestamp);
-					downsampledActiveNumbers.splice(insertionIndex, 0, zeroActiveNumber);
+					downsampledTimestamps.splice(
+						insertionIndex,
+						0,
+						zeroTimestamp
+					);
+					downsampledActiveNumbers.splice(
+						insertionIndex,
+						0,
+						zeroActiveNumber
+					);
 				}
 			}
 		}
@@ -404,25 +427,45 @@
 
 	const localTimeLabels = (() => {
 		const date = new Date(); // Create a reusable Date object
-		const options = {
-			year: 'numeric',
-			month: 'short',
-			day: 'numeric',
-			hour: 'numeric',
-			minute: 'numeric',
-			second: 'numeric',
-			hour12: false,
-			timeZone: 'America/Toronto'
-		};
 
-		return (timestamp) => {
+		return (timestamp, timezoneOverride) => {
+			const getOptions = () => {
+				if (
+					timezoneOverride == undefined ||
+					timezoneOverride == "undefined"
+				) {
+					return {
+						year: "numeric",
+						month: "short",
+						day: "numeric",
+						hour: "numeric",
+						minute: "numeric",
+						second: "numeric",
+						hour12: false,
+					};
+				} else {
+					return {
+						year: "numeric",
+						month: "short",
+						day: "numeric",
+						hour: "numeric",
+						minute: "numeric",
+						second: "numeric",
+						hour12: false,
+						timeZone: timezoneOverride,
+					};
+				}
+			};
+
 			date.setTime(timestamp * 1000); // Update the Date object with the new timestamp
-			return date.toLocaleTimeString('en-US', options);
+			return date.toLocaleTimeString("en-US", getOptions());
 		};
 	})();
 
 	function updateDatasetOnZoom(chart) {
-		let zoomArea = chart.chart._options.scales.x.max - chart.chart._options.scales.x.min;
+		let zoomArea =
+			chart.chart._options.scales.x.max -
+			chart.chart._options.scales.x.min;
 		let windowSize = 0;
 
 		if (zoomArea < 216000) {
@@ -450,11 +493,16 @@
 	const createChart = (snapshots, events) => {
 		timestamps = snapshots.map((snapshot) => snapshot.timestamp);
 		activeNumbers = snapshots.map((snapshot) => snapshot.activeNumber);
-		activeUsersArray = findClosestActiveUsers(timestamps[timestamps.length / 2], snapshots);
+		activeUsersArray = findClosestActiveUsers(
+			timestamps[timestamps.length / 2],
+			snapshots
+		);
 
-		const anonGiftEvents = events.filter((event) => event.type === 'anongift');
+		const anonGiftEvents = events.filter(
+			(event) => event.type === "anongift"
+		);
 		const filteredEvents = events.filter(
-			(event) => event.type === 'join' || event.type === 'leave'
+			(event) => event.type === "join" || event.type === "leave"
 		);
 		// Register the necessary chart components
 		Chart.register(...registerables);
@@ -462,7 +510,7 @@
 		Chart.register(annotationPlugin);
 
 		//Downsample the Chart Data if necessary
-		let zoomArea = timestamps[timestamps.length-1] - timestamps[0];
+		let zoomArea = timestamps[timestamps.length - 1] - timestamps[0];
 		let windowSize = 0;
 		if (zoomArea < 216000) {
 			windowSize = 1;
@@ -476,25 +524,25 @@
 		);
 
 		// Destroy Chart if already in use
-		const canvasElement = document.getElementById('myChart');
+		const canvasElement = document.getElementById("myChart");
 		if (canvasElement && myChart !== undefined) {
 			myChart.destroy();
 		}
 
 		// Create the chart
-		const ctx = document.getElementById('myChart').getContext('2d');
+		const ctx = document.getElementById("myChart").getContext("2d");
 		myChart = new Chart(ctx, {
-			type: 'line',
+			type: "line",
 			data: {
 				labels: downsampledTimestamps,
 				datasets: [
 					{
-						label: 'Number of Active Users',
+						label: "Number of Active Users",
 						data: downsampledActiveNumbers,
-						borderColor: 'rgba(0, 123, 255, 1)',
-						backgroundColor: 'rgba(0, 123, 255, 0.1)'
-					}
-				]
+						borderColor: "rgba(0, 123, 255, 1)",
+						backgroundColor: "rgba(0, 123, 255, 0.1)",
+					},
+				],
 			},
 			options: {
 				spanGaps: true,
@@ -506,112 +554,116 @@
 						// Add any other y-axis options you need
 						animation: {
 							// Disable animation for x-axis scaling
-							duration: 0
-						}
+							duration: 0,
+						},
 					},
 					x: {
-						type: 'linear',
+						type: "linear",
 						beginAtZero: false,
 						animation: {
 							// Disable animation for x-axis scaling
-							duration: 0
+							duration: 0,
 						},
 						ticks: {
 							callback: function (value, index, ticks) {
-								return localTimeLabels(value);
-							}
+								return localTimeLabels(value,timezoneOverride);
+							},
 						},
 						minRotation: 0,
-						maxRotation: 0
-					}
+						maxRotation: 0,
+					},
 				},
 				plugins: {
 					zoom: {
 						zoom: {
 							wheel: {
-								enabled: true // Enable zooming using the mouse wheel
+								enabled: true, // Enable zooming using the mouse wheel
 							},
 							pinch: {
-								enabled: true // Enable zooming using pinch gestures on touch devices
+								enabled: true, // Enable zooming using pinch gestures on touch devices
 							},
-							mode: 'x', // Enable zooming in x direction onl
+							mode: "x", // Enable zooming in x direction only
 							onZoom: function (chart) {
 								// Call the updateDatasetOnZoom function after the zoom is complete
 								updateDatasetOnZoom(chart);
-							}
+							},
 						},
 						pan: {
 							enabled: true, // Enable panning
-							mode: 'x' // Enable panning in x direction only
-						}
+							mode: "x", // Enable panning in x direction only
+						},
 					},
 					tooltip: {
 						callbacks: {
 							label: (context) => {
-								const activeUsers = downsampledActiveNumbers[context.dataIndex];
+								const activeUsers =
+									downsampledActiveNumbers[context.dataIndex];
 								return `Active Users: ${activeUsers}`; // Adjust options for desired time format
 							},
 							title: (tooltipItems) => {
-								const timestamp = downsampledTimestamps[tooltipItems[0].dataIndex];
-								return localTimeLabels(timestamp);
-							}
-						}
+								const timestamp =
+									downsampledTimestamps[
+										tooltipItems[0].dataIndex
+									];
+								return localTimeLabels(timestamp,timezoneOverride);
+							},
+						},
 					},
 					annotation: {
-						annotations: []
-					}
+						annotations: [],
+					},
 				},
 				elements: {
 					line: {
-						borderWidth: 2 // Adjust the width of the line
+						borderWidth: 2, // Adjust the width of the line
 					},
 					point: {
-						radius: 2 // Set point radius to 0 if you don't want to display data points
-					}
-				}
-			}
+						radius: 2, // Set point radius to 0 if you don't want to display data points
+					},
+				},
+			},
 		});
 		cursorpos = timestamps[timestamps.length / 2];
 		// add the annotations
 		var annotations = [
 			{
-				type: 'line',
-				id: 'cursor-radius',
-				mode: 'vertical',
-				scaleID: 'x',
+				type: "line",
+				id: "cursor-radius",
+				mode: "vertical",
+				scaleID: "x",
 				value: timestamps[timestamps.length / 2], // Set initial value to 0, you can update it dynamically based on cursor position
-				borderColor: 'rgba(0, 92, 190, 0.5)',
+				borderColor: "rgba(0, 92, 190, 0.5)",
 				borderWidth: 25,
 				label: {
-					content: 'Cursor Position', // Customize label content
+					content: "Cursor Position", // Customize label content
 					enabled: true,
-					position: 'top'
-				}
+					position: "top",
+				},
 			},
 			{
-				type: 'line',
-				id: 'cursor-line',
-				mode: 'vertical',
-				scaleID: 'x',
+				type: "line",
+				id: "cursor-line",
+				mode: "vertical",
+				scaleID: "x",
 				value: timestamps[timestamps.length / 2], // Set initial value to 0, you can update it dynamically based on cursor position
-				borderColor: 'rgba(255, 207, 0, 0.9)',
+				borderColor: "rgba(255, 207, 0, 0.9)",
 				borderWidth: 3,
 				label: {
-					content: 'Cursor Position', // Customize label content
+					content: "Cursor Position", // Customize label content
 					enabled: true,
-					position: 'top'
-				}
-			}
+					position: "top",
+				},
+			},
 		];
 		anonGiftEvents.forEach((event) => {
 			const { timestamp, isSus, username } = event;
 			const xValue = timestamp;
-			const color = isSus ? 'red' : 'green';
+			const color = isSus ? "red" : "green";
 			if (isSus & showSus || !isSus & shownotSus) {
 				annotations.push({
-					type: 'line',
-					mode: 'vertical',
-					scaleID: 'x',
+					type: "line",
+					mode: "vertical",
+					scaleID: "x",
 					value: xValue,
 					borderColor: color,
 					borderWidth: 5,
@@ -619,19 +671,20 @@
 					label: {
 						display: (ctx) => ctx.hovered,
 						backgroundColor: color,
-						drawTime: 'afterDatasetsDraw',
+						drawTime: "afterDatasetsDraw",
 						content: (ctx) => `Gifted sub was to: ${username}`,
-						position: (ctx) => ctx.hoverPosition
+						position: (ctx) => ctx.hoverPosition,
 					},
 					enter(ctx, event) {
 						ctx.hovered = true;
-						ctx.hoverPosition = (event.y / ctx.chart.chartArea.height) * 100 + '%';
+						ctx.hoverPosition =
+							(event.y / ctx.chart.chartArea.height) * 100 + "%";
 						ctx.chart.update();
 					},
 					leave(ctx, event) {
 						ctx.hovered = false;
 						ctx.chart.update();
-					}
+					},
 				});
 			}
 		});
@@ -640,11 +693,11 @@
 			const { timestamp, type, username } = event;
 			if (names.includes(username)) {
 				const xValue = timestamp;
-				const color = type == 'leave' ? 'orange' : 'purple';
+				const color = type == "leave" ? "orange" : "purple";
 				annotations.push({
-					type: 'line',
-					mode: 'vertical',
-					scaleID: 'x',
+					type: "line",
+					mode: "vertical",
+					scaleID: "x",
 					value: xValue,
 					borderColor: color,
 					borderWidth: 5,
@@ -652,19 +705,20 @@
 					label: {
 						display: (ctx) => ctx.hovered,
 						backgroundColor: color,
-						drawTime: 'afterDatasetsDraw',
+						drawTime: "afterDatasetsDraw",
 						content: (ctx) => `${type}: ${username}`,
-						position: (ctx) => ctx.hoverPosition
+						position: (ctx) => ctx.hoverPosition,
 					},
 					enter(ctx, event) {
 						ctx.hovered = true;
-						ctx.hoverPosition = (event.y / ctx.chart.chartArea.height) * 100 + '%';
+						ctx.hoverPosition =
+							(event.y / ctx.chart.chartArea.height) * 100 + "%";
 						ctx.chart.update();
 					},
 					leave(ctx, event) {
 						ctx.hovered = false;
 						ctx.chart.update();
-					}
+					},
 				});
 			}
 		});
@@ -674,15 +728,15 @@
 		let isMouseOverChart = false;
 		let timeoutId;
 
-		ctx.canvas.addEventListener('mouseenter', () => {
+		ctx.canvas.addEventListener("mouseenter", () => {
 			isMouseOverChart = true;
 		});
 
-		ctx.canvas.addEventListener('mouseleave', () => {
+		ctx.canvas.addEventListener("mouseleave", () => {
 			isMouseOverChart = false;
 		});
 
-		ctx.canvas.addEventListener('mousemove', (event) => {
+		ctx.canvas.addEventListener("mousemove", (event) => {
 			clearTimeout(timeoutId);
 
 			timeoutId = setTimeout(() => {
@@ -693,13 +747,18 @@
 				const chartArea = myChart.chartArea;
 				const offsetX = event.offsetX;
 				const chartX = myChart.scales.x.getValueForPixel(offsetX);
-				const valueper1 = chartX - myChart.scales.x.getValueForPixel(offsetX - 1);
+				const valueper1 =
+					chartX - myChart.scales.x.getValueForPixel(offsetX - 1);
 				const desiredWidth = (eventScanRadius * 2) / valueper1;
 				cursorpos = chartX;
 
 				//update the important arrays to reflect the change in the lists
 				activeUsersArray = findClosestActiveUsers(chartX, snapshots);
-				const filteredEvents = filterEventsByTime(events, chartX, eventScanRadius);
+				const filteredEvents = filterEventsByTime(
+					events,
+					chartX,
+					eventScanRadius
+				);
 				eventsInScope = filteredEvents.allEvents;
 				joinEventsInScope = filteredEvents.joinEvents;
 				leaveEventsInScope = filteredEvents.leaveEvents;
@@ -708,7 +767,7 @@
 				eventsInScope = eventsInScope.map((event) => {
 					return {
 						...event,
-						relationTimestamp: event.timestamp - chartX
+						relationTimestamp: event.timestamp - chartX,
 					};
 				});
 
@@ -716,7 +775,7 @@
 				joinEventsInScope = joinEventsInScope.map((event) => {
 					return {
 						...event,
-						relationTimestamp: event.timestamp - chartX
+						relationTimestamp: event.timestamp - chartX,
 					};
 				});
 
@@ -724,17 +783,19 @@
 				leaveEventsInScope = leaveEventsInScope.map((event) => {
 					return {
 						...event,
-						relationTimestamp: event.timestamp - chartX
+						relationTimestamp: event.timestamp - chartX,
 					};
 				});
 
 				// Update the value of the vertical line annotation
-				const cursorRadiusAnnotation = myChart.options.plugins.annotation.annotations.find(
-					(annotation) => annotation.id === 'cursor-radius'
-				);
-				const cursorLineAnnotation = myChart.options.plugins.annotation.annotations.find(
-					(annotation) => annotation.id === 'cursor-line'
-				);
+				const cursorRadiusAnnotation =
+					myChart.options.plugins.annotation.annotations.find(
+						(annotation) => annotation.id === "cursor-radius"
+					);
+				const cursorLineAnnotation =
+					myChart.options.plugins.annotation.annotations.find(
+						(annotation) => annotation.id === "cursor-line"
+					);
 				if (cursorRadiusAnnotation) {
 					cursorRadiusAnnotation.value = chartX;
 					cursorRadiusAnnotation.borderWidth = desiredWidth;
@@ -755,7 +816,7 @@
 				resolve(reader.result);
 			};
 			reader.onerror = () => {
-				reject(new Error('Error reading file'));
+				reject(new Error("Error reading file"));
 			};
 			reader.readAsText(file);
 		});
@@ -770,42 +831,63 @@
 	}
 
 	function handleNavWithKey(e) {
-		if (e.code === 'F2') {
+		if (e.code === "F2") {
 			navOpen = !navOpen;
 		}
 	}
 </script>
 
 <svelte:head>
-	<title>Read Test</title>
-	<meta name="description" content="About the Minecraft Server" />
+	<title>Gift Dashboard</title>
+	<meta name="description" content="The Dashboard" />
 </svelte:head>
 
 <div id="mySidenav" class="sidenav" class:open={navOpen}>
+	<!-- svelte-ignore a11y-click-events-have-key-events -->
+	<!-- svelte-ignore a11y-no-static-element-interactions -->
+	<!-- svelte-ignore a11y-missing-attribute -->
 	<a class="closebtn" on:click={handleNav}>&times;</a>
 	<h1>Show Gift Events</h1>
 	<ul class="groupedOptions">
 		<label>
-			<input type="checkbox" class="inputCheckbox" bind:checked={showSus} />
+			<input
+				type="checkbox"
+				class="inputCheckbox"
+				bind:checked={showSus}
+			/>
 			Show suspicous gift events
 		</label>
 		<br />
 		<label>
-			<input type="checkbox" class="inputCheckbox" bind:checked={shownotSus} />
+			<input
+				type="checkbox"
+				class="inputCheckbox"
+				bind:checked={shownotSus}
+			/>
 			Show non-suspicous gift events
 		</label>
 	</ul>
 	<h1>Show Events</h1>
 	<ul class="groupedOptions">
 		<label>
-			<input type="checkbox" class="inputCheckbox" bind:checked={hardFilter} />
+			<input
+				type="checkbox"
+				class="inputCheckbox"
+				bind:checked={hardFilter}
+			/>
 			Only show join/leave with filtered name(s)
 		</label>
 	</ul>
 	<h1>Scan Radius</h1>
 	<label>
 		<input type="number" bind:value={eventScanRadius} min="0" max="5000" />
-		<input class="slider" type="range" bind:value={eventScanRadius} min="0" max="5000" />
+		<input
+			class="slider"
+			type="range"
+			bind:value={eventScanRadius}
+			min="0"
+			max="5000"
+		/>
 	</label>
 	<h1>Name Filter</h1>
 	<ul class="groupedOptions">
@@ -822,15 +904,25 @@
 		</ul>
 	</ul>
 	<h1>Override Timezone</h1>
-	<Select {items} class="selector" />
+	<Select
+		items={timezoneList}
+		value="undefined"
+		class="selector"
+		bind:justValue={timezoneOverride}
+	/>
 	<h1>Apply Settings</h1>
 	<div style="display: flex; justify-content: center;">
-		<button class="redrawbutton" on:click={reRenderChart}>Redraw the chart</button>
-		<button class="redrawbutton" on:click={handleFiles}>Reread the Data</button>
+		<button class="redrawbutton" on:click={reRenderChart}
+			>Redraw the chart</button
+		>
+		<button class="redrawbutton" on:click={handleFiles}
+			>Reread the Data</button
+		>
 	</div>
 </div>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
+<!-- svelte-ignore a11y-no-static-element-interactions -->
 <div class="container" class:change={navOpen} on:click={handleNav}>
 	<div class="bar1" />
 	<div class="bar2" />
@@ -840,19 +932,39 @@
 <!-- Use keyboard to handle the sidenav -->
 <svelte:window on:keydown={handleNavWithKey} />
 
-<p><input type="file" bind:files multiple on:change={handleFiles} />select some log data</p>
+<p>
+	<input type="file" bind:files multiple on:change={handleFiles} />select some
+	log data
+</p>
 <div class="wrapper" style="width: inherit; height: 400px;">
 	<canvas id="myChart" style="width: inherit; height: 400px;" />
 </div>
+{#if timezoneOverride == undefined || timezoneOverride == "undefined"}
+	<p>Using local timezone: <strong>{getLocalTimezoneAndOffset()}</strong></p>
+{:else}
+	<p>
+		Using timezone override: <strong
+			>{getTimezoneAndOffset(timezoneOverride)}</strong
+		>
+	</p>
+{/if}
 {#if cursorpos != undefined}
-	<h1>Cursor is at: {localTimeLabels(cursorpos)} - {parseFloat(cursorpos).toFixed(2)}</h1>
+	<h1>
+		Cursor is at: {localTimeLabels(cursorpos,timezoneOverride)} - {parseFloat(
+			cursorpos
+		).toFixed(2)}
+	</h1>
 {/if}
 
 <div class="row">
 	<div class="col">
 		<b style="margin: auto">All Events</b>
 		<p>{eventStart} - {eventEnd} from {filteredEvents.length} total</p>
-		<input type="text" bind:value={eventFilter} placeholder="filter name or event type" />
+		<input
+			type="text"
+			bind:value={eventFilter}
+			placeholder="filter name or event type"
+		/>
 		<div class="List">
 			<VirtualList
 				class="VirtualList"
@@ -864,7 +976,7 @@
 			>
 				<div class="ListItem">
 					<strong>{item.type}</strong>
-					<p>{localTimeLabels(item.timestamp)}</p>
+					<p>{localTimeLabels(item.timestamp,timezoneOverride)}</p>
 					<b style="margin: 6px">{item.username}</b>
 				</div>
 			</VirtualList>
@@ -872,8 +984,15 @@
 	</div>
 	<div class="col">
 		<b style="margin: auto">Active Users at Cursor</b>
-		<p>{activeUsersStart} - {activeUsersEnd} from {filteredActiveUsers.length} total</p>
-		<input type="text" bind:value={activeUsersFilter} placeholder="filter name" />
+		<p>
+			{activeUsersStart} - {activeUsersEnd} from {filteredActiveUsers.length}
+			total
+		</p>
+		<input
+			type="text"
+			bind:value={activeUsersFilter}
+			placeholder="filter name"
+		/>
 		<div class="List">
 			<VirtualList
 				height="100%"
@@ -909,7 +1028,11 @@
 	<div class="col">
 		<b style="margin: auto">Leaves in Scanradius</b>
 		<p>{leavesStart} - {leavesEnd} from {filteredLeaves.length} total</p>
-		<input type="text" bind:value={leavesFilter} placeholder="filter name" />
+		<input
+			type="text"
+			bind:value={leavesFilter}
+			placeholder="filter name"
+		/>
 		<div class="List">
 			<VirtualList
 				height="100%"
@@ -926,8 +1049,14 @@
 	</div>
 	<div class="col">
 		<b style="margin: auto">All Usernames</b>
-		<p>{usernamesStart} - {usernamesEnd} from {filteredUsernames.length} total</p>
-		<input type="text" bind:value={usernamesFilter} placeholder="filter name" />
+		<p>
+			{usernamesStart} - {usernamesEnd} from {filteredUsernames.length} total
+		</p>
+		<input
+			type="text"
+			bind:value={usernamesFilter}
+			placeholder="filter name"
+		/>
 		<div class="List">
 			<VirtualList
 				height="100%"
@@ -976,13 +1105,6 @@
 		-webkit-transform: rotate(45deg) translate(-8px, -8px);
 		transform: rotate(45deg) translate(-8px, -8px);
 	}
-
-	/* span {
-		position: absolute;
-		right: 20%;
-		display: inline-block;
-		cursor: pointer;
-	}	 */
 
 	/* The side navigation menu */
 	.sidenav {
@@ -1111,7 +1233,7 @@
 	:global(.selector) {
 		color: black;
 		margin-left: 1rem !important;
-    	margin-right: 1rem !important;
-    	width: auto !important;
+		margin-right: 1rem !important;
+		width: auto !important;
 	}
 </style>

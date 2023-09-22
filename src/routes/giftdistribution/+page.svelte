@@ -1,12 +1,20 @@
 <script>
-// @ts-nocheck
-	import { Event, JoinEvent, LeaveEvent, AnonGiftEvent, TimestampSnapshot } from '../giftdistribution/classes';
-	import VirtualList from 'svelte-virtual-list-ce';
-	import { Chart, registerables } from 'chart.js';
-	import annotationPlugin from 'chartjs-plugin-annotation';
+	// @ts-nocheck
+	import {
+		Event,
+		JoinEvent,
+		LeaveEvent,
+		AnonGiftEvent,
+		TimestampSnapshot,
+	} from "../giftdistribution/classes";
+	import VirtualList from "svelte-virtual-list-ce";
+	import { Chart, registerables } from "chart.js";
+	import annotationPlugin from "chartjs-plugin-annotation";
+	import Select from "svelte-select";
 	let myChart = undefined;
 	let myChart2 = undefined;
-	let cursorpos = undefined;
+	let timezoneOverride = undefined;
+	let timezoneList = [];
 	let showSus = true;
 	let shownotSus = true;
 	let hardFilter = false;
@@ -19,35 +27,31 @@
 	let eventsNearSusArray = [];
 	let eventsNearSusArrayDetailed = [];
 	let activeUsersArray = [];
-	let eventsInScope = [];
 	let anonGiftEvents = [];
-	let joinEventsInScope = [];
-	let leaveEventsInScope = [];
-	let susMemberMap = [];
 	let allUserNamesArray = [];
 	let susMemberArray = [];
 	let names = [];
-	let name = '';
+	let name = "";
 
 	let eventStart;
 	let eventEnd;
-	let eventFilter = '';
+	let eventFilter = "";
 
 	let activeUsersStart;
 	let activeUsersEnd;
-	let activeUsersFilter = '';
+	let activeUsersFilter = "";
 
 	let joinsStart;
 	let joinsEnd;
-	let joinsFilter = '';
+	let joinsFilter = "";
 
 	let leavesStart;
 	let leavesEnd;
-	let leavesFilter = '';
+	let leavesFilter = "";
 
 	let usernamesStart;
 	let usernamesEnd;
-	let usernamesFilter = '';
+	let usernamesFilter = "";
 
 	$: filteredActiveUsers = susMemberArray.filter((i) =>
 		i.username.includes(activeUsersFilter.toLocaleLowerCase())
@@ -68,7 +72,9 @@
 			: [];
 	$: filteredUsernames =
 		allUserNamesArray.length > 0
-			? allUserNamesArray.filter((i) => i.includes(usernamesFilter.toLocaleLowerCase()))
+			? allUserNamesArray.filter((i) =>
+					i.includes(usernamesFilter.toLocaleLowerCase())
+			  )
 			: [];
 
 	function updateSleepingArrays() {
@@ -78,13 +84,12 @@
 		filteredUsernames = allUserNamesArray.filter((i) =>
 			i.includes(usernamesFilter.toLocaleLowerCase())
 		);
-		console.log('Updated sleeping Arrays');
 	}
 
 	function addName() {
-		if ((name != '') & (name != undefined)) {
+		if ((name != "") & (name != undefined)) {
 			names = [...names, name.toLocaleLowerCase()];
-			name = '';
+			name = "";
 		}
 	}
 	function deleteFromArray(string) {
@@ -94,6 +99,44 @@
 		}
 		names = names;
 	}
+
+	function getTimezoneOffset(timezone) {
+		const now = new Date();
+		const offset = now
+			.toLocaleTimeString("en-US", {
+				timeZone: timezone,
+				timeZoneName: "short",
+			})
+			.split(" ")[2];
+		return offset;
+	}
+
+	function getLocalTimezoneAndOffset() {
+		const localTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+		const localTimezoneOffset = getTimezoneOffset(localTimeZone);
+		return `${localTimeZone} - ${localTimezoneOffset}`;
+	}
+
+	function getTimezoneAndOffset(timezone) {
+		const timezoneOffset = getTimezoneOffset(timezone);
+		return `${timezone} - ${timezoneOffset}`;
+	}
+
+	function fillTimezoneList() {
+		let temparray = [{ value: "undefined", label: "Use local timezone" }];
+		const timeZones = Intl.supportedValuesOf("timeZone", {
+			type: "canonical",
+		});
+		for (const timezone of timeZones) {
+			const offset = getTimezoneOffset(timezone);
+			temparray.push({
+				value: timezone,
+				label: `${timezone} - ${offset}`,
+			});
+		}
+		return temparray;
+	}
+	timezoneList = fillTimezoneList();
 
 	function reRenderChart() {
 		createChart(snapshots, mergedLogs);
@@ -109,15 +152,15 @@
 			const fileContent = await readFile(file);
 
 			console.log(currentFileName);
-			const lines = fileContent.split('\n');
-			if (currentFileName.includes('init')) {
-				const initEvent = new Event('init', -1);
-				lines.unshift(JSON.stringify(initEvent) + '\n');
-				console.log('this is an init file');
+			const lines = fileContent.split("\n");
+			if (currentFileName.includes("init")) {
+				const initEvent = new Event("init", -1);
+				lines.unshift(JSON.stringify(initEvent) + "\n");
+				console.log("this is an init file");
 			}
 
 			const parsedData = parseLines(lines, previousTimestamp); // Pass previousTimestamp to parseLines
-			console.log('parsedData successful');
+			console.log("parsed Data successfully");
 			logs.push(parsedData);
 
 			if (parsedData.length > 0) {
@@ -125,7 +168,7 @@
 			}
 		}
 
-		console.log('All files read successfully');
+		console.log("All files read successfully");
 		mergedLogs = logs.flat();
 		calculateActiveUsers(mergedLogs);
 	};
@@ -135,19 +178,26 @@
 
 		for (let i = 0; i < lines.length; i++) {
 			const line = lines[i];
-			if (line === '') {
-				console.log('line empty, skipping');
+			if (line === "") {
+				console.log("line empty, skipping");
 			} else {
 				let event = JSON.parse(line);
 				switch (event.type) {
-					case 'init':
-						const timestamp = adjustInitTimestamp(previousTimestamp, lines, i);
-						const initEvent = new Event('init', timestamp);
+					case "init":
+						const timestamp = adjustInitTimestamp(
+							previousTimestamp,
+							lines,
+							i
+						);
+						const initEvent = new Event("init", timestamp);
 						eventList.push(initEvent);
 						previousTimestamp = event.timestamp;
 						break;
-					case 'join':
-						const joinEvent = new JoinEvent(event.username, event.timestamp);
+					case "join":
+						const joinEvent = new JoinEvent(
+							event.username,
+							event.timestamp
+						);
 						if (!hardFilter) {
 							eventList.push(joinEvent);
 						} else {
@@ -158,8 +208,11 @@
 						previousTimestamp = event.timestamp;
 
 						break;
-					case 'leave':
-						const leaveEvent = new LeaveEvent(event.username, event.timestamp);
+					case "leave":
+						const leaveEvent = new LeaveEvent(
+							event.username,
+							event.timestamp
+						);
 						if (!hardFilter) {
 							eventList.push(leaveEvent);
 						} else {
@@ -169,7 +222,7 @@
 						}
 						previousTimestamp = event.timestamp;
 						break;
-					case 'anongift':
+					case "anongift":
 						const anonGiftEvent = new AnonGiftEvent(
 							event.username,
 							event.timestamp,
@@ -197,7 +250,6 @@
 			return nextEvent.timestamp - 1;
 		} else {
 			// Handle the case when there is no previous event and no next event
-			// You can set a default value or return null/undefined depending on your requirements
 			return undefined;
 		}
 	};
@@ -214,7 +266,7 @@
 			) {
 				joinLeaveGiftArray.push(event);
 			}
-			if (event.type === 'init') {
+			if (event.type === "init") {
 				activeUsers = [];
 				const timestamp = Math.floor(event.timestamp);
 				const newSnapshot = new TimestampSnapshot(timestamp, [], 0);
@@ -241,7 +293,9 @@
 			}
 
 			const timestamp = Math.floor(event.timestamp); // Convert timestamp to seconds
-			const existingSnapshotIndex = snapshots.findIndex((s) => s.timestamp === timestamp);
+			const existingSnapshotIndex = snapshots.findIndex(
+				(s) => s.timestamp === timestamp
+			);
 
 			if (existingSnapshotIndex !== -1) {
 				const numberOfActiveUsers = activeUsers.length;
@@ -261,9 +315,9 @@
 				snapshots.push(newSnapshot);
 			}
 		});
-		console.log('Active Users calculated successfully');
+		console.log("Active Users calculated successfully");
 		allUserNamesArray.sort();
-		console.log('Calling create chart');
+		console.log("Calling create chart");
 		createChart(snapshots, events);
 		updateSleepingArrays();
 	};
@@ -273,7 +327,8 @@
 
 		snapshots.forEach((snapshot) => {
 			if (
-				Math.abs(snapshot.timestamp - timestamp) < Math.abs(closestSnapshot.timestamp - timestamp)
+				Math.abs(snapshot.timestamp - timestamp) <
+				Math.abs(closestSnapshot.timestamp - timestamp)
 			) {
 				closestSnapshot = snapshot;
 			}
@@ -307,61 +362,103 @@
 
 	const localTimeLabels = (() => {
 		const date = new Date(); // Create a reusable Date object
-		const options = {
-			year: 'numeric',
-			month: 'short',
-			day: 'numeric',
-			hour: 'numeric',
-			minute: 'numeric',
-			second: 'numeric',
-			hour12: false
-		};
 
-		return (timestamp) => {
+		return (timestamp, timezoneOverride) => {
+			const getOptions = () => {
+				if (
+					timezoneOverride == undefined ||
+					timezoneOverride == "undefined"
+				) {
+					return {
+						year: "numeric",
+						month: "short",
+						day: "numeric",
+						hour: "numeric",
+						minute: "numeric",
+						second: "numeric",
+						hour12: false,
+					};
+				} else {
+					return {
+						year: "numeric",
+						month: "short",
+						day: "numeric",
+						hour: "numeric",
+						minute: "numeric",
+						second: "numeric",
+						hour12: false,
+						timeZone: timezoneOverride,
+					};
+				}
+			};
+
 			date.setTime(timestamp * 1000); // Update the Date object with the new timestamp
-			return date.toLocaleTimeString('en-US', options);
+			return date.toLocaleTimeString("en-US", getOptions());
 		};
 	})();
 
 	const createChart = (snapshots, events) => {
 		const timestamps = snapshots.map((snapshot) => snapshot.timestamp);
-		const activeNumbers = snapshots.map((snapshot) => snapshot.activeNumber);
-		activeUsersArray = findClosestActiveUsers(timestamps[timestamps.length / 2], snapshots);
+		const activeNumbers = snapshots.map(
+			(snapshot) => snapshot.activeNumber
+		);
+		activeUsersArray = findClosestActiveUsers(
+			timestamps[timestamps.length / 2],
+			snapshots
+		);
 
-		anonGiftEvents = events.filter((event) => event.type === 'anongift');
+		anonGiftEvents = events.filter((event) => event.type === "anongift");
 		const filteredEvents = events.filter(
-			(event) => event.type === 'join' || event.type === 'leave'
+			(event) => event.type === "join" || event.type === "leave"
 		);
 		// Register the necessary chart components
 		Chart.register(...registerables);
 		Chart.register(annotationPlugin);
 
 		// Destroy Chart if already in use
-		const canvasElement = document.getElementById('myChart');
+		const canvasElement = document.getElementById("myChart");
 		if (canvasElement && myChart !== undefined) {
 			myChart.destroy();
 		}
-		const canvasElement2 = document.getElementById('myChart2');
+		const canvasElement2 = document.getElementById("myChart2");
 		if (canvasElement2 && myChart !== undefined) {
 			myChart2.destroy();
 		}
 
 		// Create the chart1
-		const ctx = document.getElementById('myChart').getContext('2d');
+		const ctx = document.getElementById("myChart").getContext("2d");
 		const interval = 15; // Group events into 15-minute intervals
 		const data = Array.from({ length: (24 * 60) / interval }, () => 0);
 
-		anonGiftEvents.forEach((event) => {
-			const date = new Date(event.timestamp * 1000);
-			const hour = date.getHours();
-			const minutes = date.getMinutes();
-			const index = Math.floor((hour * 60 + minutes) / interval);
+		if (timezoneOverride == undefined || timezoneOverride == "undefined") {
+			anonGiftEvents.forEach((event) => {
+				const date = new Date(event.timestamp * 1000);
+				const hour = date.getHours();
+				const minutes = date.getMinutes();
+				const index = Math.floor((hour * 60 + minutes) / interval);
 
-			data[index]++;
-		});
+				data[index]++;
+			});
+		} else {
+			anonGiftEvents.forEach((event) => {
+				const date = new Date(event.timestamp * 1000);
+				const options = {
+					timeZone: timezoneOverride,
+					hour: "numeric",
+					minute: "numeric",
+					hour12: false,
+				};
+				// Format the date in the specified timezone
+				const formattedTime = date.toLocaleString("en-US", options);
+				// Parse the formatted time to extract the hour and minute
+				const [hour, minute] = formattedTime.split(":").map(Number);
+				const index = Math.floor((hour * 60 + minute) / interval);
+				data[index]++;
+			});
+		}
 
 		myChart = new Chart(ctx, {
-			type: 'bar',
+			type: "bar",
 			data: {
 				labels: Array.from({ length: (24 * 60) / interval }, (_, i) => {
 					const startMinutes = i * interval;
@@ -371,40 +468,61 @@
 					const endHour = Math.floor(endMinutes / 60);
 					const endMins = endMinutes % 60;
 
-					return `${startHour.toString().padStart(2, '0')}:${startMins
+					return `${startHour.toString().padStart(2, "0")}:${startMins
 						.toString()
-						.padStart(2, '0')} - ${endHour.toString().padStart(2, '0')}:${endMins
+						.padStart(2, "0")} - ${endHour
 						.toString()
-						.padStart(2, '0')}`;
+						.padStart(2, "0")}:${endMins
+						.toString()
+						.padStart(2, "0")}`;
 				}),
 				datasets: [
 					{
-						label: 'Event Distribution',
+						label: "Event Distribution",
 						data,
-						backgroundColor: 'rgba(204, 68, 29, 0.2)',
-						borderColor: 'rgba(204, 68, 29, 1)',
-						borderWidth: 1
-					}
-				]
+						backgroundColor: "rgba(204, 68, 29, 0.2)",
+						borderColor: "rgba(204, 68, 29, 1)",
+						borderWidth: 1,
+					},
+				],
 			},
 			options: {
 				scales: {
 					y: {
 						beginAtZero: true,
-						max: Math.max(...data) + 1 // Adjust the y-axis scale if needed
-					}
-				}
-			}
+						max: Math.max(...data) + 1, // Adjust the y-axis scale if needed
+					},
+				},
+			},
 		});
 		// Create the chart2
-		const ctx2 = document.getElementById('myChart2').getContext('2d');
+		const ctx2 = document.getElementById("myChart2").getContext("2d");
 		const data2 = Array.from({ length: (24 * 60) / interval }, () => 0);
 
 		anonGiftEvents.forEach((event) => {
 			if (event.isSus) {
-				const date = new Date(event.timestamp * 1000);
-				const hour = date.getHours();
-				const minutes = date.getMinutes();
+				let hour;
+				let minutes;
+				if (
+					timezoneOverride == undefined ||
+					timezoneOverride == "undefined"
+				) {
+					const date = new Date(event.timestamp * 1000);
+					hour = date.getHours();
+					minutes = date.getMinutes();
+				} else {
+					const date = new Date(event.timestamp * 1000);
+					const options = {
+						timeZone: timezoneOverride,
+						hour: "numeric",
+						minute: "numeric",
+						hour12: false,
+					};
+					// Format the date in the specified timezone
+					const formattedTime = date.toLocaleString("en-US", options);
+					// Parse the formatted time to extract the hour and minute
+					[hour, minutes] = formattedTime.split(":").map(Number);
+				}
 				const index = Math.floor((hour * 60 + minutes) / interval);
 
 				data2[index]++;
@@ -412,7 +530,7 @@
 		});
 
 		myChart2 = new Chart(ctx2, {
-			type: 'bar',
+			type: "bar",
 			data: {
 				labels: Array.from({ length: (24 * 60) / interval }, (_, i) => {
 					const startMinutes = i * interval;
@@ -422,37 +540,42 @@
 					const endHour = Math.floor(endMinutes / 60);
 					const endMins = endMinutes % 60;
 
-					return `${startHour.toString().padStart(2, '0')}:${startMins
+					return `${startHour.toString().padStart(2, "0")}:${startMins
 						.toString()
-						.padStart(2, '0')} - ${endHour.toString().padStart(2, '0')}:${endMins
+						.padStart(2, "0")} - ${endHour
 						.toString()
-						.padStart(2, '0')}`;
+						.padStart(2, "0")}:${endMins
+						.toString()
+						.padStart(2, "0")}`;
 				}),
 				datasets: [
 					{
-						label: 'Event Distribution',
+						label: "Event Distribution",
 						data: data2,
-						backgroundColor: 'rgba(204, 68, 29, 0.2)',
-						borderColor: 'rgba(204, 68, 29, 1)',
-						borderWidth: 1
-					}
-				]
+						backgroundColor: "rgba(204, 68, 29, 0.2)",
+						borderColor: "rgba(204, 68, 29, 1)",
+						borderWidth: 1,
+					},
+				],
 			},
 			options: {
 				scales: {
 					y: {
 						beginAtZero: true,
-						max: Math.max(...data) + 1 // Adjust the y-axis scale if needed
-					}
-				}
-			}
+						max: Math.max(...data) + 1, // Adjust the y-axis scale if needed
+					},
+				},
+			},
 		});
 
 		let susMemberMap = new Map();
 
 		anonGiftEvents.forEach((event) => {
 			if (event.isSus) {
-				const activeUsersAtPoint = findClosestActiveUsers(event.timestamp, snapshots);
+				const activeUsersAtPoint = findClosestActiveUsers(
+					event.timestamp,
+					snapshots
+				);
 				activeUsersAtPoint.forEach((user) => {
 					if (susMemberMap.has(user)) {
 						susMemberMap.set(user, susMemberMap.get(user) + 1);
@@ -469,9 +592,11 @@
 			}
 			return b[1] - a[1];
 		});
-		console.log(susMemberMap);
 		//create susMemberArray where Member occurences are counted at sus gift events
-		susMemberArray = sortedCounts.map(([username, count]) => ({ username, count }));
+		susMemberArray = sortedCounts.map(([username, count]) => ({
+			username,
+			count,
+		}));
 
 		eventsNearSusArray = [];
 		eventsNearSusArrayDetailed = [];
@@ -479,7 +604,11 @@
 		//create eventsNearSusArray & eventsNearSusArrayDetailed
 		anonGiftEvents.forEach((event) => {
 			if (event.isSus) {
-				const filteredEvents = filterEventsByTime(events, event.timestamp, eventScanRadius);
+				const filteredEvents = filterEventsByTime(
+					events,
+					event.timestamp,
+					eventScanRadius
+				);
 				const eventsInScope = filteredEvents.allEvents;
 
 				const userEventTypeCounts = {};
@@ -487,7 +616,10 @@
 				const userEventTypeCountsAfter = {};
 
 				eventsInScope.forEach((filteredEvent) => {
-					if (filteredEvent instanceof JoinEvent || filteredEvent instanceof LeaveEvent) {
+					if (
+						filteredEvent instanceof JoinEvent ||
+						filteredEvent instanceof LeaveEvent
+					) {
 						const username = filteredEvent.username;
 						const eventType = filteredEvent.type;
 
@@ -505,16 +637,24 @@
 							if (!userEventTypeCountsBefore[username]) {
 								userEventTypeCountsBefore[username] = {};
 							}
-							if (!userEventTypeCountsBefore[username][eventType]) {
-								userEventTypeCountsBefore[username][eventType] = 0;
+							if (
+								!userEventTypeCountsBefore[username][eventType]
+							) {
+								userEventTypeCountsBefore[username][
+									eventType
+								] = 0;
 							}
 							userEventTypeCountsBefore[username][eventType]++;
 						} else if (filteredEvent.timestamp > event.timestamp) {
 							if (!userEventTypeCountsAfter[username]) {
 								userEventTypeCountsAfter[username] = {};
 							}
-							if (!userEventTypeCountsAfter[username][eventType]) {
-								userEventTypeCountsAfter[username][eventType] = 0;
+							if (
+								!userEventTypeCountsAfter[username][eventType]
+							) {
+								userEventTypeCountsAfter[username][
+									eventType
+								] = 0;
 							}
 							userEventTypeCountsAfter[username][eventType]++;
 						}
@@ -527,7 +667,9 @@
 						const count = userEventTypeCounts[username][eventType];
 						// Check if an entry with the same username and eventType already exists
 						const existingEntry = eventsNearSusArray.find(
-							(entry) => entry.username === username && entry.eventType === eventType
+							(entry) =>
+								entry.username === username &&
+								entry.eventType === eventType
 						);
 
 						if (existingEntry) {
@@ -535,23 +677,31 @@
 							existingEntry.count += count;
 						} else {
 							// Entry doesn't exist, add a new entry to the eventsNearSusArray array
-							eventsNearSusArray.push({ username, eventType, count });
+							eventsNearSusArray.push({
+								username,
+								eventType,
+								count,
+							});
 						}
 					}
 				}
 
 				// Push user event type counts after to eventsNearSusArrayDetailed
 				for (const username in userEventTypeCountsAfter) {
-					for (const eventType in userEventTypeCountsAfter[username]) {
+					for (const eventType in userEventTypeCountsAfter[
+						username
+					]) {
 						const countAfter =
-							userEventTypeCountsAfter[username] && userEventTypeCountsAfter[username][eventType];
+							userEventTypeCountsAfter[username] &&
+							userEventTypeCountsAfter[username][eventType];
 						if (countAfter > 0) {
-							const existingEntry = eventsNearSusArrayDetailed.find(
-								(entry) =>
-									entry.username === username &&
-									entry.eventType === eventType &&
-									entry.type === 'after'
-							);
+							const existingEntry =
+								eventsNearSusArrayDetailed.find(
+									(entry) =>
+										entry.username === username &&
+										entry.eventType === eventType &&
+										entry.type === "after"
+								);
 							if (existingEntry) {
 								// Entry already exists, you can update the count or handle it as per your requirements
 								existingEntry.count += countAfter;
@@ -560,8 +710,8 @@
 								eventsNearSusArrayDetailed.push({
 									username,
 									eventType,
-									type: 'after',
-									count: countAfter
+									type: "after",
+									count: countAfter,
 								});
 							}
 						}
@@ -570,15 +720,19 @@
 
 				// Push user event type counts before to eventsNearSusArrayDetailed
 				for (const username in userEventTypeCountsBefore) {
-					for (const eventType in userEventTypeCountsBefore[username]) {
-						const countBefore = userEventTypeCountsBefore[username][eventType];
+					for (const eventType in userEventTypeCountsBefore[
+						username
+					]) {
+						const countBefore =
+							userEventTypeCountsBefore[username][eventType];
 						if (countBefore > 0) {
-							const existingEntry = eventsNearSusArrayDetailed.find(
-								(entry) =>
-									entry.username === username &&
-									entry.eventType === eventType &&
-									entry.type === 'before'
-							);
+							const existingEntry =
+								eventsNearSusArrayDetailed.find(
+									(entry) =>
+										entry.username === username &&
+										entry.eventType === eventType &&
+										entry.type === "before"
+								);
 							if (existingEntry) {
 								// Entry already exists, you can update the count or handle it as per your requirements
 								existingEntry.count += countBefore;
@@ -587,15 +741,15 @@
 								eventsNearSusArrayDetailed.push({
 									username,
 									eventType,
-									type: 'before',
-									count: countBefore
+									type: "before",
+									count: countBefore,
 								});
 							}
 						}
 					}
 				}
 			}
-			console.log('Finished Create Chart');
+			console.log("Finished Create Chart");
 		});
 
 		// Sort eventsNearSusArray
@@ -615,11 +769,6 @@
 				return a.username.localeCompare(b.username);
 			}
 		});
-
-		console.log('trying to log Near Array');
-		console.log(eventsNearSusArray);
-		console.log('trying to log Near Array Detail');
-		console.log(eventsNearSusArrayDetailed);
 	};
 
 	const readFile = (file) => {
@@ -629,7 +778,7 @@
 				resolve(reader.result);
 			};
 			reader.onerror = () => {
-				reject(new Error('Error reading file'));
+				reject(new Error("Error reading file"));
 			};
 			reader.readAsText(file);
 		});
@@ -644,42 +793,63 @@
 	}
 
 	function handleNavWithKey(e) {
-		if (e.code === 'F2') {
+		if (e.code === "F2") {
 			navOpen = !navOpen;
 		}
 	}
 </script>
 
 <svelte:head>
-	<title>Read Test</title>
-	<meta name="description" content="About the Minecraft Server" />
+	<title>Gift Distribution</title>
+	<meta name="description" content="The Distribution of the gifted Subs" />
 </svelte:head>
 
 <div id="mySidenav" class="sidenav" class:open={navOpen}>
+	<!-- svelte-ignore a11y-click-events-have-key-events -->
+	<!-- svelte-ignore a11y-no-static-element-interactions -->
+	<!-- svelte-ignore a11y-missing-attribute -->
 	<a class="closebtn" on:click={handleNav}>&times;</a>
 	<h1>Show Gift Events</h1>
 	<ul class="groupedOptions">
 		<label>
-			<input type="checkbox" class="inputCheckbox" bind:checked={showSus} />
+			<input
+				type="checkbox"
+				class="inputCheckbox"
+				bind:checked={showSus}
+			/>
 			Show suspicous gift events
 		</label>
 		<br />
 		<label>
-			<input type="checkbox" class="inputCheckbox" bind:checked={shownotSus} />
+			<input
+				type="checkbox"
+				class="inputCheckbox"
+				bind:checked={shownotSus}
+			/>
 			Show non-suspicous gift events
 		</label>
 	</ul>
 	<h1>Show Events</h1>
 	<ul class="groupedOptions">
 		<label>
-			<input type="checkbox" class="inputCheckbox" bind:checked={hardFilter} />
+			<input
+				type="checkbox"
+				class="inputCheckbox"
+				bind:checked={hardFilter}
+			/>
 			Only show join/leave with filtered name(s)
 		</label>
 	</ul>
 	<h1>Scan Radius</h1>
 	<label>
 		<input type="number" bind:value={eventScanRadius} min="0" max="5000" />
-		<input class="slider" type="range" bind:value={eventScanRadius} min="0" max="5000" />
+		<input
+			class="slider"
+			type="range"
+			bind:value={eventScanRadius}
+			min="0"
+			max="5000"
+		/>
 	</label>
 	<h1>Name Filter</h1>
 	<ul class="groupedOptions">
@@ -695,10 +865,21 @@
 			{/each}
 		</ul>
 	</ul>
+	<h1>Override Timezone</h1>
+	<Select
+		items={timezoneList}
+		value="undefined"
+		class="selector"
+		bind:justValue={timezoneOverride}
+	/>
 	<h1>Apply Settings</h1>
 	<div style="display: flex; justify-content: center;">
-		<button class="redrawbutton" on:click={reRenderChart}>Redraw the chart</button>
-		<button class="redrawbutton" on:click={handleFiles}>Reread the Data</button>
+		<button class="redrawbutton" on:click={reRenderChart}
+			>Redraw the chart</button
+		>
+		<button class="redrawbutton" on:click={handleFiles}
+			>Reread the Data</button
+		>
 	</div>
 </div>
 
@@ -713,8 +894,10 @@
 <!-- Use keyboard to handle the sidenav -->
 <svelte:window on:keydown={handleNavWithKey} />
 
-
-<p><input type="file" bind:files multiple on:change={handleFiles} />select some log data</p>
+<p>
+	<input type="file" bind:files multiple on:change={handleFiles} />select some
+	log data
+</p>
 <h1>All Anon Gift Events</h1>
 <div class="wrapper" style="width: inherit; height: 400px;">
 	<canvas id="myChart" style="width: inherit; height: 400px;" />
@@ -723,17 +906,25 @@
 <div class="wrapper" style="width: inherit; height: 400px;">
 	<canvas id="myChart2" style="width: inherit; height: 400px;" />
 </div>
-<!--
-{#if cursorpos != undefined}
-	<h1>Cursor is at: {localTimeLabels(cursorpos)} - {parseFloat(cursorpos).toFixed(2)}</h1>
+{#if timezoneOverride == undefined || timezoneOverride == "undefined"}
+	<p>Using local timezone: <strong>{getLocalTimezoneAndOffset()}</strong></p>
+{:else}
+	<p>
+		Using timezone override: <strong
+			>{getTimezoneAndOffset(timezoneOverride)}</strong
+		>
+	</p>
 {/if}
--->
 
 <div class="row">
 	<div class="col">
 		<b style="margin: auto">All Events</b>
 		<p>{eventStart} - {eventEnd} from {filteredEvents.length} total</p>
-		<input type="text" bind:value={eventFilter} placeholder="filter name or event type" />
+		<input
+			type="text"
+			bind:value={eventFilter}
+			placeholder="filter name or event type"
+		/>
 		<div class="List">
 			<VirtualList
 				class="VirtualList"
@@ -745,21 +936,23 @@
 			>
 				<div class="ListItem">
 					<strong>{item.type}</strong>
-					<p>{localTimeLabels(item.timestamp)}</p>
+					<p>{localTimeLabels(item.timestamp, timezoneOverride)}</p>
 					<b style="margin: 6px">{item.username}</b>
 				</div>
 			</VirtualList>
 		</div>
 	</div>
-	<!--
-				for (const [username, count] of sortedCounts) {
-			console.log(`Username: ${username}, Count: ${count}`);
-		}
-	-->
 	<div class="col">
 		<b style="margin: auto">No. User was active at sus Gift Event</b>
-		<p>{activeUsersStart} - {activeUsersEnd} from {filteredActiveUsers.length} total</p>
-		<input type="text" bind:value={activeUsersFilter} placeholder="filter name" />
+		<p>
+			{activeUsersStart} - {activeUsersEnd} from {filteredActiveUsers.length}
+			total
+		</p>
+		<input
+			type="text"
+			bind:value={activeUsersFilter}
+			placeholder="filter name"
+		/>
 		<div class="List">
 			<VirtualList
 				height="100%"
@@ -797,7 +990,11 @@
 	<div class="col">
 		<b style="margin: auto">Grouped Events at sus in Scanradius</b>
 		<p>{leavesStart} - {leavesEnd} from {filteredLeaves.length} total</p>
-		<input type="text" bind:value={leavesFilter} placeholder="filter name" />
+		<input
+			type="text"
+			bind:value={leavesFilter}
+			placeholder="filter name"
+		/>
 		<div class="List">
 			<VirtualList
 				height="100%"
@@ -808,15 +1005,21 @@
 			>
 				<div class="ListItem">
 					<strong>{item.count} - {item.type}</strong>
-					<p>{item.username}: {item.eventType} </p>
+					<p>{item.username}: {item.eventType}</p>
 				</div>
 			</VirtualList>
 		</div>
 	</div>
 	<div class="col">
 		<b style="margin: auto">All Usernames</b>
-		<p>{usernamesStart} - {usernamesEnd} from {filteredUsernames.length} total</p>
-		<input type="text" bind:value={usernamesFilter} placeholder="filter name" />
+		<p>
+			{usernamesStart} - {usernamesEnd} from {filteredUsernames.length} total
+		</p>
+		<input
+			type="text"
+			bind:value={usernamesFilter}
+			placeholder="filter name"
+		/>
 		<div class="List">
 			<VirtualList
 				height="100%"
@@ -851,7 +1054,7 @@
 			<tr>
 				<td>{event.type}</td>
 				<td>{event.username}</td>
-				<td>{localTimeLabels(event.timestamp)}</td>
+				<td>{localTimeLabels(event.timestamp, timezoneOverride)}</td>
 				<td>{event.isSus}</td>
 				<td>{event.originId}</td>
 				<td>{event.id}</td>
@@ -878,7 +1081,7 @@
 			<tr>
 				<td>{event.type}</td>
 				<td>{event.username}</td>
-				<td>{localTimeLabels(event.timestamp)}</td>
+				<td>{localTimeLabels(event.timestamp, timezoneOverride)}</td>
 				<td>{event.isSus}</td>
 				<td>{event.originId}</td>
 				<td>{event.id}</td>
@@ -1064,5 +1267,11 @@
 	}
 	th {
 		background-color: #f2f2f2;
+	}
+	:global(.selector) {
+		color: black;
+		margin-left: 1rem !important;
+		margin-right: 1rem !important;
+		width: auto !important;
 	}
 </style>

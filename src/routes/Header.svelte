@@ -18,9 +18,6 @@
 			<li aria-current={$page.url.pathname === '/giftdistribution' ? 'page' : undefined}>
 				<a href="/giftdistribution">Gift Distribution</a>
 			</li>
-			<li aria-current={$page.url.pathname.startsWith('/sverdle') ? 'page' : undefined}>
-				<a href="/sverdle">Sverdle</a>
-			</li>
 			<li aria-current={$page.url.pathname === '/help' ? 'page' : undefined}>
 				<a href="/help">Help</a>
 			</li>
@@ -39,25 +36,6 @@
 	header {
 		display: flex;
 		justify-content: space-between;
-	}
-
-	.corner {
-		width: 3em;
-		height: 3em;
-	}
-
-	.corner a {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 100%;
-		height: 100%;
-	}
-
-	.corner img {
-		width: 2em;
-		height: 2em;
-		object-fit: contain;
 	}
 
 	nav {
