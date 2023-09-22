@@ -9,7 +9,6 @@
 	} from "../giftdistribution/classes";
 	import VirtualList from "svelte-virtual-list-ce";
 	import { Chart, registerables } from "chart.js";
-	import annotationPlugin from "chartjs-plugin-annotation";
 	import Select from "svelte-select";
 	let myChart = undefined;
 	let myChart2 = undefined;
@@ -407,7 +406,6 @@
 		anonGiftEvents = events.filter((event) => event.type === "anongift");
 		// Register the necessary chart components
 		Chart.register(...registerables);
-		Chart.register(annotationPlugin);
 
 		// Destroy Chart if already in use
 		const canvasElement = document.getElementById("myChart");
