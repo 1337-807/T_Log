@@ -13,16 +13,16 @@
 			<li aria-current={$page.url.pathname === `/${base}` ? 'page' : undefined}>
 				<a href="{base}/">Home</a>
 			</li>
-			<li aria-current={$page.url.pathname === `/${base}/giftdashboard` ? 'page' : undefined}>
+			<li aria-current={$page.url.pathname === `${base}/giftdashboard` ? 'page' : undefined}>
 				<a href="{base}/giftdashboard">Gift-Dashboard</a>
 			</li>
-			<li aria-current={$page.url.pathname === `/${base}/giftdistribution` ? 'page' : undefined}>
+			<li aria-current={$page.url.pathname === `${base}/giftdistribution` ? 'page' : undefined}>
 				<a href="{base}/giftdistribution">Gift Distribution</a>
 			</li>
-			<li aria-current={$page.url.pathname === `/${base}/help` ? 'page' : undefined}>
+			<li aria-current={$page.url.pathname === `${base}/help` ? 'page' : undefined}>
 				<a href="{base}/help">Help</a>
 			</li>
-			<li aria-current={$page.url.pathname === `/${base}/about` ? 'page' : undefined}>
+			<li aria-current={$page.url.pathname === `${base}/about` ? 'page' : undefined}>
 				<a href="{base}/about">About</a>
 			</li>
 		</ul>
