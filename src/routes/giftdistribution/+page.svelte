@@ -896,6 +896,15 @@
 <div class="wrapper" style="width: inherit; height: 400px;">
 	<canvas id="myChart" style="width: inherit; height: 400px;" />
 </div>
+{#if timezoneOverride == undefined || timezoneOverride == "undefined"}
+	<p>Using local timezone: <strong>{getLocalTimezoneAndOffset()}</strong></p>
+{:else}
+	<p>
+		Using timezone override: <strong
+			>{getTimezoneAndOffset(timezoneOverride)}</strong
+		>
+	</p>
+{/if}
 <h1>Only sus Gift Events</h1>
 <div class="wrapper" style="width: inherit; height: 400px;">
 	<canvas id="myChart2" style="width: inherit; height: 400px;" />
