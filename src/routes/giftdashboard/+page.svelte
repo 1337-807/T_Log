@@ -566,7 +566,7 @@
 						},
 						ticks: {
 							callback: function (value, index, ticks) {
-								return localTimeLabels(value,timezoneOverride);
+								return localTimeLabels(value, timezoneOverride);
 							},
 						},
 						minRotation: 0,
@@ -605,7 +605,10 @@
 									downsampledTimestamps[
 										tooltipItems[0].dataIndex
 									];
-								return localTimeLabels(timestamp,timezoneOverride);
+								return localTimeLabels(
+									timestamp,
+									timezoneOverride
+								);
 							},
 						},
 					},
@@ -891,9 +894,10 @@
 	</label>
 	<h1>Name Filter</h1>
 	<ul class="groupedOptions">
-		<input bind:value={name} placeholder="Enter a username" />
-		<button on:click={addName}> Add name </button>
-
+		<form>
+			<input bind:value={name} placeholder="Enter a username" />
+			<button on:click={addName}> Add name </button>
+		</form>
 		<ul>
 			{#each names as name}
 				<li>
@@ -916,7 +920,7 @@
 			>Redraw the chart</button
 		>
 		<button class="redrawbutton" on:click={handleFiles}
-			>Reread the Data</button
+			>Reread the data</button
 		>
 	</div>
 </div>
@@ -950,7 +954,7 @@
 {/if}
 {#if cursorpos != undefined}
 	<h1>
-		Cursor is at: {localTimeLabels(cursorpos,timezoneOverride)} - {parseFloat(
+		Cursor is at: {localTimeLabels(cursorpos, timezoneOverride)} - {parseFloat(
 			cursorpos
 		).toFixed(2)}
 	</h1>
@@ -976,7 +980,7 @@
 			>
 				<div class="ListItem">
 					<strong>{item.type}</strong>
-					<p>{localTimeLabels(item.timestamp,timezoneOverride)}</p>
+					<p>{localTimeLabels(item.timestamp, timezoneOverride)}</p>
 					<b style="margin: 6px">{item.username}</b>
 				</div>
 			</VirtualList>

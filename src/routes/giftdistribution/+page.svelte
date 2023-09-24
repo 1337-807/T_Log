@@ -847,8 +847,10 @@
 	</label>
 	<h1>Name Filter</h1>
 	<ul class="groupedOptions">
-		<input bind:value={name} placeholder="Enter a username" />
-		<button on:click={addName}> Add name </button>
+		<form>
+			<input bind:value={name} placeholder="Enter a username" />
+			<button on:click={addName}> Add name </button>
+		</form>
 
 		<ul>
 			{#each names as name}
@@ -872,7 +874,7 @@
 			>Redraw the chart</button
 		>
 		<button class="redrawbutton" on:click={handleFiles}
-			>Reread the Data</button
+			>Reread the data</button
 		>
 	</div>
 </div>
