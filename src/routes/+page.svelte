@@ -9,7 +9,7 @@
 
 <h1>Welcome to the T_Log Twitch Log-Explorer Site.</h1>
 
-<img class="logo" src="Tlog.svg" alt="Tlog SVG" />
+<img class="logo" src="{base}/Tlog.svg" alt="Tlog SVG" />
 
 <p>
 	If you're not sure why this page was created or if you want to learn more
