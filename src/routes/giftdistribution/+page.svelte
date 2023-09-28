@@ -1129,13 +1129,6 @@
 		transform: rotate(45deg) translate(-8px, -8px);
 	}
 
-	/* span {
-		position: absolute;
-		right: 20%;
-		display: inline-block;
-		cursor: pointer;
-	}	 */
-
 	/* The side navigation menu */
 	.sidenav {
 		height: 100%;
@@ -1266,8 +1259,8 @@
 	}
 	th,
 	td {
-		border: 1px solid #ddd;
-		padding: 8px;
+		border: 1px solid #fff;
+		padding: 4px;
 		text-align: left;
 	}
 	th {

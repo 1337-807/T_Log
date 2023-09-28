@@ -10,6 +10,15 @@
 <div class="text-column">
 	<h1>Help</h1>
 
+	<h2>Browser Support</h2>
+
+	<p>
+		Currently, only Google Chrome is supported and only Google Chrome was tested.
+		Firefox is known to have issues. Microsoft Edge should also work according to
+		a quick test, but it is not guaranteed. Other browsers might work but only Google 
+		Chrome was tested.
+	</p>
+
 	<h2>Selecting Log Data</h2>
 
 	<p>
